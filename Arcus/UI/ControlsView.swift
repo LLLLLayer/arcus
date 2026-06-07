@@ -33,7 +33,7 @@ struct ControlsView: View {
 
                 slider(title: "3D 强度", value: $model.params.parallaxAmp, range: 0.02...0.13)
                 slider(title: "背景视差", value: $model.params.bgParallaxFactor, range: 0.0...0.8)
-                slider(title: "前景外扩", value: $model.params.fgExtend, range: 0.0...1.0)
+                slider(title: "前景放大", value: $model.params.fgScale, range: 1.0...1.25)
 
                 HStack(spacing: 12) {
                     Toggle(isOn: $model.params.motionEnabled) {
