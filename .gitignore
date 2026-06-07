@@ -1,0 +1,40 @@
+# Xcode / Swift
+*.xcuserstate
+xcuserdata/
+*.xcscmblueprint
+*.xccheckout
+DerivedData/
+build/
+*.moved-aside
+*.hmap
+*.ipa
+*.dSYM.zip
+*.dSYM
+
+# Swift Package Manager
+.swiftpm/
+.build/
+Packages/
+Package.resolved
+
+# CocoaPods / Carthage (if ever used)
+Pods/
+Carthage/Build/
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+Icon?
+
+# Core ML models (large; downloaded at setup via scripts/download_models.sh)
+*.mlmodelc/
+Arcus/Resources/*.mlpackage/
+Arcus/Resources/*.mlmodel
+
+# Misc
+*.log
+.env
+
+# Claude Code local settings
+.claude/

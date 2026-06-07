@@ -1,0 +1,222 @@
+import Foundation
+import UIKit
+import AVFoundation
+
+/// 端侧编排：UIImage → 深度 → 定向 → 主体分割 → 去遮挡补全 → 烘焙 Photo3DScene。
+/// 全程一次性、可在后台线程跑；通过 progress 回调反馈阶段与进度。
+final class Photo3DPipeline {
+
+    struct Options {
+        var maxWorkingSide: Int = 1024
+        /// 去遮挡环带半径占长边比例（决定背景被补全的范围，≈最大像素视差）。
+        var ringRadiusFraction: Float = 0.045
+    }
+
+    enum PipelineError: Error { case badImage, textureAllocation }
+
+    private let depthEstimator = DepthEstimator()
+    private let segmenter = SubjectSegmenter()
+    private let lamaInpainter = LamaInpainter()
+
+    var isDepthModelAvailable: Bool { depthEstimator.isModelAvailable }
+    var isLamaAvailable: Bool { lamaInpainter.isAvailable }
+
+    func process(image: UIImage,
+                 avDepth: AVDepthData? = nil,
+                 options: Options = Options(),
+                 progress: @escaping (Double, String) -> Void) throws -> Photo3DScene {
+
+        let t0 = CFAbsoluteTimeGetCurrent()
+        progress(0.05, "预处理图像…")
+        guard let work = ImageUtils.workingImage(from: image, maxSide: options.maxWorkingSide) else {
+            throw PipelineError.badImage
+        }
+        let cg = work.cg, W = work.width, H = work.height
+        let color = FloatImage.fromCGImage(cg, width: W, height: H)   // rgba
+
+        progress(0.20, "估计深度…")
+        let depthResult = depthEstimator.estimate(cgImage: cg, width: W, height: H, avDepth: avDepth)
+        var disparity = depthResult.disparity
+
+        progress(0.45, "分割主体…")
+        let segResult = segmenter.segment(cgImage: cg, width: W, height: H)
+
+        // 主体 mask：系统分割优先；否则用深度近场阈值近似。
+        var mask: FloatImage
+        let segSource: String
+        if let seg = segResult {
+            mask = seg.mask
+            segSource = seg.source.rawValue
+            // 用 mask 自动校正深度远近方向（保证主体处视差更大）。
+            orientDisparity(&disparity, mask: mask)
+        } else {
+            // 无系统分割：先确保 disparity 近=大（默认信任来源），再阈值取近景为前景。
+            mask = nearFieldMask(from: disparity)
+            segSource = SubjectSegmenter.Source.none.rawValue
+        }
+
+        // 边缘 matting 精修：用 RGB 亮度做 guided filter，把 mask 贴合到图像边缘（发丝/边界），
+        // 减少边缘漏光与补全掩膜脏。
+        let guide = color.luminance()
+        mask = mask.guidedRefined(guide: guide, radius: max(2, W / 200), eps: 1e-4)
+        // 收紧 matte 边缘到近乎硬边（几何抗锯齿交给 4×MSAA）：半透明过渡带越宽，
+        // 主体背后的补全色越会从这条带"透出来"形成光晕。收紧到 ~1px → 补全被前景完全盖住。
+        for p in 0..<(W * H) { mask.pixels[p] = smoothStep(0.46, 0.54, mask.pixels[p]) }
+
+        // 边缘保持式深度去噪（中值）——保留深度断层，替代会糊掉悬崖的方框模糊。
+        disparity = disparity.median3()
+
+        progress(0.62, "补全主体背后的背景…")
+
+        let longSide = Float(max(W, H))
+
+        // 主体二值（阈值低些把柔边并入），用于前景深度的平滑/外扩。
+        var subj = FloatImage(width: W, height: H, channels: 1)
+        for p in 0..<(W * H) { subj.pixels[p] = mask.pixels[p] > 0.35 ? 1 : 0 }
+
+        // 补全区 = 仅「前景不透明覆盖」的区域(matte>0.5)，**绝不外扩到真实背景**。
+        // 之前向外膨胀 ~25px 去补全，等于把剪影外那一圈真背景换成了填充色 → 就是用户看到的光圈。
+        // 现在只补主体所在处；剪影之外保持原始真背景，零光圈。露出的去遮挡发生在剪影"内"，仍被补到。
+        // 有效背景 = 主体之外的干净背景(matte<0.35)，作为补全的「已知区」。
+        var validFull = FloatImage(width: W, height: H, channels: 1)
+        for p in 0..<(W * H) { validFull.pixels[p] = subj.pixels[p] > 0.5 ? 0 : 1 }
+
+        // 背景颜色：用「最近有效像素」(Jump Flooding) 在原分辨率直接复制真实背景像素。
+        // 相比 push-pull 的金字塔扩散(会糊)，它锐利、纹理真实；又只用真实背景色(绝不彩虹)。
+        // 露出的去遮挡窄带紧贴剪影 → 复制到的就是旁边的真实背景，像自然延续，不再"虚化"。
+        let bgColorImg = DisocclusionInpainter.nearestValidFill(rgb3(color), valid: validFull)
+        let inpaintSource = "nearest"
+
+        // 背景深度：降采样上 push-pull（深度平滑无妨），主体区按背景视差填充。
+        let inpaintSide = 640
+        let s = Float(inpaintSide) / longSide
+        let iw = max(2, Int((Float(W) * s).rounded()))
+        let ih = max(2, Int((Float(H) * s).rounded()))
+        let dispSmall = disparity.resized(to: iw, to: ih)
+        let validSmall = validFull.resized(to: iw, to: ih)
+        let bgDepthImg = DisocclusionInpainter.pushPullFill(dispSmall, valid: validSmall).resized(to: W, to: H)
+
+        progress(0.85, "烘焙 3D 网格…")
+        // 前景层：rgb + alpha=柔和 matte（边缘羽化，over 合成无镶边）。
+        var fg = FloatImage(width: W, height: H, channels: 4)
+        for p in 0..<(W * H) {
+            fg.pixels[p * 4 + 0] = color.pixels[p * 4 + 0]
+            fg.pixels[p * 4 + 1] = color.pixels[p * 4 + 1]
+            fg.pixels[p * 4 + 2] = color.pixels[p * 4 + 2]
+            fg.pixels[p * 4 + 3] = mask.pixels[p]
+        }
+
+        // 前景几何深度——关键：
+        // (1) 主体内部「带掩膜强平滑」：Depth Anything 在发丝/边缘处深度噪声极大，
+        //     若直接拿来 warp，网格会在主体内被撕成毛刺+空洞（实测真机毛刺/糊背景的根因，
+        //     合成噪声深度复现：115200 个三角只剩 1310 个）。带掩膜模糊只用主体内像素求平均，
+        //     既抹平内部噪声、又保留剪影处的深度悬崖。
+        let rBlur = max(3, W / 30)
+        var dmul = FloatImage(width: W, height: H, channels: 1)
+        for p in 0..<(W * H) { dmul.pixels[p] = disparity.pixels[p] * subj.pixels[p] }
+        let num = dmul.boxBlurred(radius: rBlur, passes: 2)
+        let den = subj.boxBlurred(radius: rBlur, passes: 2)
+        var fgDisp = disparity
+        for p in 0..<(W * H) where subj.pixels[p] > 0.5 {
+            fgDisp.pixels[p] = den.pixels[p] > 0.01 ? num.pixels[p] / den.pixels[p] : disparity.pixels[p]
+        }
+        // (2) 把(已平滑的)主体深度向外扩张一个小带，使柔和 matte 的边缘与主体同步位移
+        //     （边缘抗锯齿、不产生反向尖刺）。
+        let extR = max(4, W / 120)
+        let subjDil2 = subj.dilated(radius: extR)
+        let fgDispDil = fgDisp.dilated(radius: extR)
+        for p in 0..<(W * H) where subjDil2.pixels[p] > 0.5 && subj.pixels[p] < 0.5 {
+            fgDisp.pixels[p] = fgDispDil.pixels[p]
+        }
+
+        guard let depthTex = fgDisp.uploadScalarTexture(),
+              let fgColorTex = fg.uploadColorTexture(),
+              let bgColorTex = bgColorImg.uploadColorTexture(),
+              let bgDepthTex = bgDepthImg.uploadScalarTexture() else {
+            throw PipelineError.textureAllocation
+        }
+
+        // 构建网格：背景=完整连续网格(平滑视差,无分层环)；前景=主体网格(深度断层处切开,无橡皮膜糊影)。
+        guard let mesh = MeshBuilder.build(width: W, height: H,
+                                           disparity: fgDisp, matte: mask,
+                                           stride: 2, tauCut: 0.05) else {
+            throw PipelineError.textureAllocation
+        }
+
+        // 视差幅度建议：按深度分布的展开度。
+        let suggested = suggestedParallax(from: disparity)
+
+        NSLog("[Pipeline] 完成 %dx%d 用时 %.2fs (深度:%@ 主体:%@ 补全:%@ 三角 前景:%d/背景:%d)", W, H,
+              CFAbsoluteTimeGetCurrent() - t0, depthResult.source.rawValue, segSource, inpaintSource,
+              mesh.fgIndexCount / 3, mesh.bgIndexCount / 3)
+        progress(1.0, "完成")
+        return Photo3DScene(
+            width: W, height: H,
+            fgColor: fgColorTex, depth: depthTex,
+            bgColor: bgColorTex, bgDepth: bgDepthTex,
+            vertexBuffer: mesh.vertexBuffer, gridW: mesh.gridW, gridH: mesh.gridH,
+            bgIndexBuffer: mesh.bgIndexBuffer, bgIndexCount: mesh.bgIndexCount,
+            fgIndexBuffer: mesh.fgIndexBuffer, fgIndexCount: mesh.fgIndexCount,
+            suggestedParallax: suggested,
+            depthPreview: nil, maskPreview: nil, backgroundPreview: nil,
+            depthSource: depthResult.source.rawValue,
+            segmentSource: segSource, inpaintSource: inpaintSource)
+    }
+
+    // MARK: - 辅助
+
+    private func rgb3(_ rgba: FloatImage) -> FloatImage {
+        var out = FloatImage(width: rgba.width, height: rgba.height, channels: 3)
+        for p in 0..<(rgba.width * rgba.height) {
+            out.pixels[p * 3 + 0] = rgba.pixels[p * 4 + 0]
+            out.pixels[p * 3 + 1] = rgba.pixels[p * 4 + 1]
+            out.pixels[p * 3 + 2] = rgba.pixels[p * 4 + 2]
+        }
+        return out
+    }
+
+    /// 若主体处平均视差小于背景，则翻转深度方向（保证 1=近）。
+    private func orientDisparity(_ disp: inout FloatImage, mask: FloatImage) {
+        var inSum: Float = 0, inN: Float = 0, outSum: Float = 0, outN: Float = 0
+        let n = disp.width * disp.height
+        for p in 0..<n {
+            if mask.pixels[p] > 0.5 { inSum += disp.pixels[p]; inN += 1 }
+            else { outSum += disp.pixels[p]; outN += 1 }
+        }
+        let inMean = inN > 0 ? inSum / inN : 0
+        let outMean = outN > 0 ? outSum / outN : 0
+        if inMean < outMean {
+            for p in 0..<n { disp.pixels[p] = 1 - disp.pixels[p] }
+        }
+    }
+
+    /// 取近景（高视差）为前景的软 mask（无系统分割时的兜底）。
+    private func nearFieldMask(from disp: FloatImage) -> FloatImage {
+        let n = disp.pixels.count
+        guard n > 0 else { return FloatImage(width: disp.width, height: disp.height, channels: 1) }
+        var sorted = disp.pixels
+        sorted.sort()
+        let thr = sorted[min(max(Int(Double(n) * 0.62), 0), n - 1)]   // 取最近的 ~38% 作前景候选
+        let soft: Float = 0.12
+        var out = FloatImage(width: disp.width, height: disp.height, channels: 1)
+        for p in 0..<n {
+            out.pixels[p] = smoothStep(thr - soft, thr + soft, disp.pixels[p])
+        }
+        return out
+    }
+
+    private func suggestedParallax(from disp: FloatImage) -> Float {
+        let n = disp.pixels.count
+        let mean = disp.pixels.reduce(0, +) / Float(n)
+        var varSum: Float = 0
+        for v in disp.pixels { let d = v - mean; varSum += d * d }
+        let std = sqrt(varSum / Float(n))
+        // std 越大（深度层次越分明），默认视差可越大。
+        return min(1.0, max(0.4, std * 3.0))
+    }
+}
+
+@inline(__always) func smoothStep(_ a: Float, _ b: Float, _ x: Float) -> Float {
+    let t = min(1, max(0, (x - a) / max(b - a, 1e-5)))
+    return t * t * (3 - 2 * t)
+}
