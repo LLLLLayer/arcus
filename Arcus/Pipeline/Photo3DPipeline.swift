@@ -84,12 +84,17 @@ final class Photo3DPipeline {
         for p in 0..<(W * H) { validFull.pixels[p] = subj.pixels[p] > 0.5 ? 0 : 1 }
 
         // 背景颜色：默认竖直延续填充(快、锐利)；开启「高质量」时用 PatchMatch 内容感知填充(慢、更连贯)。
-        if options.highQualityFill { progress(0.62, "高质量补全背景（PatchMatch，较慢）…") }
-        let fillFn: (FloatImage, FloatImage) -> FloatImage = options.highQualityFill
-            ? { DisocclusionInpainter.patchMatchFill($0, valid: $1) }
-            : { DisocclusionInpainter.verticalFill($0, valid: $1) }
-        let bgColorImg = fillFn(rgb3(color), validFull)
-        let inpaintSource = options.highQualityFill ? "PatchMatch" : "vertical"
+        // 两者都传入 disparity 做「深度门控」：只从身后的背景侧像素取色，绝不把近处物/主体色拉进去遮挡带。
+        let bgColorImg: FloatImage
+        let inpaintSource: String
+        if options.highQualityFill {
+            progress(0.62, "高质量补全背景（PatchMatch · 深度感知，较慢）…")
+            bgColorImg = DisocclusionInpainter.patchMatchFill(rgb3(color), valid: validFull, disparity: disparity)
+            inpaintSource = "PatchMatch+depth"
+        } else {
+            bgColorImg = DisocclusionInpainter.verticalFill(rgb3(color), valid: validFull, disparity: disparity)
+            inpaintSource = "vertical+depth"
+        }
 
         // 背景深度：降采样上 push-pull（深度平滑无妨），主体区按背景视差填充。
         let inpaintSide = 640

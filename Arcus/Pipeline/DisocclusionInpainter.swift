@@ -70,24 +70,55 @@ enum DisocclusionInpainter {
     /// 竖直延续填充：每个洞像素沿「列」复制最近的已知背景像素(上/下)。
     /// 站立主体背后的背景多为竖直结构(树干/墙/天空) → 竖直延续最自然：锐利、无星芒、无灰带。
     /// 再把竖直填充产生的「横向突变」(横向结构被拉成竖条纹处)做轻微横向柔化，优雅降级。
-    static func verticalFill(_ image: FloatImage, valid: FloatImage) -> FloatImage {
+    static func verticalFill(_ image: FloatImage, valid: FloatImage, disparity: FloatImage? = nil) -> FloatImage {
         let w = image.width, h = image.height, ch = image.channels, n = w * h
-        // 每像素的「最近已知像素」行号：列向上 / 列向下，各一遍 O(n)。
+        // 深度门控(可选)：标记「背景侧」有效像素(视差 ≤ 背景中位数 + ε)。优先用它们作竖直种子，
+        // 避免把近处非主体物的颜色竖直拉进去遮挡带；某列无背景种子时退回任意有效像素(保证不留洞)。
+        var bgSeed: [Bool]? = nil
+        if let disp = disparity, disp.width == w, disp.height == h {
+            var bgVals = [Float](); bgVals.reserveCapacity(n)
+            for p in 0..<n where valid.pixels[p] > 0.5 { bgVals.append(disp.pixels[p]) }
+            if !bgVals.isEmpty {
+                bgVals.sort()
+                let bgRef = bgVals[bgVals.count / 2], eps: Float = 0.06
+                var ok = [Bool](repeating: false, count: n)
+                for p in 0..<n { ok[p] = valid.pixels[p] > 0.5 && disp.pixels[p] <= bgRef + eps }
+                bgSeed = ok
+            }
+        }
+        // 每像素的「最近已知像素」行号：列向上 / 列向下，各一遍 O(n)。门控时另算「最近背景种子」。
         var upIdx = [Int32](repeating: -1, count: n)
         var dnIdx = [Int32](repeating: -1, count: n)
+        var upBg = [Int32](repeating: -1, count: n)
+        var dnBg = [Int32](repeating: -1, count: n)
         for x in 0..<w {
-            var last: Int32 = -1
-            for y in 0..<h { let p = y * w + x; if valid.pixels[p] > 0.5 { last = Int32(y) }; upIdx[p] = last }
-            last = -1
+            var last: Int32 = -1, lastBg: Int32 = -1
+            for y in 0..<h {
+                let p = y * w + x
+                if valid.pixels[p] > 0.5 { last = Int32(y) }
+                if let s = bgSeed, s[p] { lastBg = Int32(y) }
+                upIdx[p] = last; upBg[p] = lastBg
+            }
+            last = -1; lastBg = -1
             var y = h - 1
-            while y >= 0 { let p = y * w + x; if valid.pixels[p] > 0.5 { last = Int32(y) }; dnIdx[p] = last; y -= 1 }
+            while y >= 0 {
+                let p = y * w + x
+                if valid.pixels[p] > 0.5 { last = Int32(y) }
+                if let s = bgSeed, s[p] { lastBg = Int32(y) }
+                dnIdx[p] = last; dnBg[p] = lastBg
+                y -= 1
+            }
         }
+        let gated = bgSeed != nil
         var vfill = image
         for x in 0..<w {
             for y in 0..<h {
                 let p = y * w + x
                 if valid.pixels[p] > 0.5 { continue }
-                let up = upIdx[p], dn = dnIdx[p]
+                // 优先背景种子；该列无背景种子时退回任意有效像素。
+                var up = gated ? upBg[p] : upIdx[p]
+                var dn = gated ? dnBg[p] : dnIdx[p]
+                if up < 0 && dn < 0 { up = upIdx[p]; dn = dnIdx[p] }
                 var src: Int32 = -1
                 if up >= 0 && dn >= 0 { src = (y - Int(up)) <= (Int(dn) - y) ? up : dn }
                 else if up >= 0 { src = up } else { src = dn }
@@ -140,16 +171,17 @@ enum DisocclusionInpainter {
     /// PatchMatch 内容感知填充（Barnes et al. 2009）：给洞里每个块找「最相似的真实纹理块」复制并投票，
     /// EM 迭代(随机最近邻匹配=随机初始化+传播+随机搜索)。比竖直填充更连贯(任意结构都行、无条纹)，
     /// 但 CPU 上较慢——内部降采样到 maxSide 跑搜索，再上采回洞(已知像素保持全分辨率锐利)。
-    static func patchMatchFill(_ image: FloatImage, valid: FloatImage, maxSide: Int = 512) -> FloatImage {
+    static func patchMatchFill(_ image: FloatImage, valid: FloatImage, maxSide: Int = 512, disparity: FloatImage? = nil) -> FloatImage {
         let longSide = max(image.width, image.height)
-        if longSide <= maxSide { return patchMatchCore(image, valid: valid) }
+        if longSide <= maxSide { return patchMatchCore(image, valid: valid, disparity: disparity) }
         let s = Float(maxSide) / Float(longSide)
         let sw = max(8, Int((Float(image.width) * s).rounded()))
         let sh = max(8, Int((Float(image.height) * s).rounded()))
         let imgS = image.resized(to: sw, to: sh)
         var validS = valid.resized(to: sw, to: sh)
         for p in 0..<(sw * sh) { validS.pixels[p] = validS.pixels[p] > 0.5 ? 1 : 0 }
-        let filledS = patchMatchCore(imgS, valid: validS).resized(to: image.width, to: image.height)
+        let dispS = disparity?.resized(to: sw, to: sh)
+        let filledS = patchMatchCore(imgS, valid: validS, disparity: dispS).resized(to: image.width, to: image.height)
         var out = image
         let ch = image.channels
         for p in 0..<(image.width * image.height) where valid.pixels[p] <= 0.5 {
@@ -158,19 +190,39 @@ enum DisocclusionInpainter {
         return out
     }
 
-    private static func patchMatchCore(_ image: FloatImage, valid: FloatImage) -> FloatImage {
+    private static func patchMatchCore(_ image: FloatImage, valid: FloatImage, disparity: FloatImage? = nil) -> FloatImage {
         let w = image.width, h = image.height, ch = image.channels, n = w * h
         let P = 3, emN = 2, pmIterN = 3
-        var filled = verticalFill(image, valid: valid)        // 好的初始化 → 收敛快
-        // 源块中心：整 PxP 块都已知。
-        var srcX = [Int](), srcY = [Int]()
-        for y in P..<(h - P) {
-            for x in P..<(w - P) {
-                var ok = true
-                loop: for dy in -P...P { for dx in -P...P { if valid.pixels[(y+dy)*w+(x+dx)] < 0.5 { ok = false; break loop } } }
-                if ok { srcX.append(x); srcY.append(y) }
-            }
+        var filled = verticalFill(image, valid: valid, disparity: disparity)   // 好的(深度门控)初始化 → 收敛快
+
+        // 深度感知(可选)：源端 = 原视差(只取背景侧块)；目标端 = 背景填充后的视差(洞内 ≈ 身后背景深度，
+        // 而非主体的近景深度)。匹配代价加一项 β·深度差²，让块匹配偏向「与该处背景同深度」的真实纹理，
+        // 并由源门控保证绝不复制近处物/主体。
+        let srcDisp: [Float]? = (disparity?.width == w && disparity?.height == h) ? disparity!.pixels : nil
+        let tgtDisp: [Float]? = srcDisp != nil ? pushPullFill(disparity!, valid: valid).pixels : nil
+        var bgRef: Float = 1
+        if let d = srcDisp {
+            var bgVals = [Float](); for p in 0..<n where valid.pixels[p] > 0.5 { bgVals.append(d[p]) }
+            if !bgVals.isEmpty { bgVals.sort(); bgRef = bgVals[bgVals.count / 2] }
         }
+        let depthEps: Float = 0.06, beta: Float = 0.8
+
+        // 源块中心：整 PxP 块都已知；深度感知时再要求中心在背景侧(视差 ≤ 背景中位数 + ε，排除近处非主体物)。
+        // 若深度门控后源太少(可能瓦片化)，则放开深度门，退回纯几何源集。
+        func collectSources(depthGated: Bool) -> ([Int], [Int]) {
+            var sx = [Int](), sy = [Int]()
+            for y in P..<(h - P) {
+                for x in P..<(w - P) {
+                    var ok = true
+                    loop: for dy in -P...P { for dx in -P...P { if valid.pixels[(y+dy)*w+(x+dx)] < 0.5 { ok = false; break loop } } }
+                    if ok && depthGated, let d = srcDisp, d[y * w + x] > bgRef + depthEps { ok = false }
+                    if ok { sx.append(x); sy.append(y) }
+                }
+            }
+            return (sx, sy)
+        }
+        var (srcX, srcY) = collectSources(depthGated: srcDisp != nil)
+        if srcX.count < 64 { (srcX, srcY) = collectSources(depthGated: false) }
         let ns = srcX.count
         if ns == 0 { return filled }
         var holeIdx = [Int](); for p in 0..<n where valid.pixels[p] <= 0.5 { holeIdx.append(p) }
@@ -189,6 +241,7 @@ enum DisocclusionInpainter {
                     let a = (yy*w+xx)*ch, b = (syy*w+sxx)*ch
                     let d0 = filled.pixels[a]-image.pixels[b], d1 = filled.pixels[a+1]-image.pixels[b+1], d2 = filled.pixels[a+2]-image.pixels[b+2]
                     s += d0*d0 + d1*d1 + d2*d2
+                    if let td = tgtDisp, let sd = srcDisp { let dd = td[yy*w+xx] - sd[syy*w+sxx]; s += beta * dd * dd }
                 }
                 if s > best { return s }
             }
