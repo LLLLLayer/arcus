@@ -11,6 +11,7 @@ struct MeshUniforms {
     var flatten: Float = 0
     var layerFactor: Float = 1       // warp 缩放：前景=1, 背景=bgParallaxFactor
     var fgFlag: Float = 1            // 1=前景(matte alpha), 0=背景(不透明)
+    var fgExtend: Float = 0         // 前景外扩 0..1
     var debugMode: Int32 = 0
 }
 
@@ -22,6 +23,7 @@ struct ViewerParams {
     var motionEnabled: Bool = true
     var autoAnimate: Bool = false
     var multiLayerBg: Bool = false       // 背景再分层（近景背景中间层 + 远景背景打底）
+    var fgExtend: Float = 0              // 前景外扩 0..1（移动时少露出补全）
 }
 
 /// Metal 连续深度网格 warp 渲染器（2 层软 LDI，无深度缓冲——靠绘制顺序 + 剪影切口处理遮挡）：
@@ -164,7 +166,7 @@ final class ParallaxRenderer: NSObject, MTKViewDelegate {
         // ---- 前景：切开的主体网格，over 混合，按真实逐像素深度位移 ----
         if scene.fgIndexCount > 0 {
             enc.setRenderPipelineState(blendState)
-            var uf = uniforms; uf.layerFactor = 1; uf.fgFlag = 1
+            var uf = uniforms; uf.layerFactor = 1; uf.fgFlag = 1; uf.fgExtend = params.fgExtend
             enc.setVertexBytes(&uf, length: stride, index: 1)
             enc.setVertexTexture(scene.depth, index: 0)
             enc.setFragmentBytes(&uf, length: stride, index: 1)

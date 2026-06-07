@@ -101,14 +101,6 @@ final class Photo3DPipeline {
         let bgDepthImg = DisocclusionInpainter.pushPullFill(dispSmall, valid: validSmall).resized(to: W, to: H)
 
         progress(0.85, "烘焙 3D 网格…")
-        // 前景层：rgb + alpha=柔和 matte（边缘羽化，over 合成无镶边）。
-        var fg = FloatImage(width: W, height: H, channels: 4)
-        for p in 0..<(W * H) {
-            fg.pixels[p * 4 + 0] = color.pixels[p * 4 + 0]
-            fg.pixels[p * 4 + 1] = color.pixels[p * 4 + 1]
-            fg.pixels[p * 4 + 2] = color.pixels[p * 4 + 2]
-            fg.pixels[p * 4 + 3] = mask.pixels[p]
-        }
 
         // 前景几何深度——关键：
         // (1) 主体内部「带掩膜强平滑」：Depth Anything 在发丝/边缘处深度噪声极大，
@@ -133,6 +125,24 @@ final class Photo3DPipeline {
             fgDisp.pixels[p] = fgDispDil.pixels[p]
         }
 
+        // 前景层 rgb+a，并支持「前景外扩」(运行时滑块 fgExtend 实时调)：把主体边缘的颜色与覆盖往外推 extR 带。
+        // alpha：剪影内=细 matte(发丝)；外扩带=随到剪影距离衰减的 0..0.42（着色器按 fgExtend 决定该带露出多少）。
+        // 颜色：外扩带用「最近主体像素」外扩，避免变成背景色光晕。
+        let cov = subj.dilated(radius: extR).boxBlurred(radius: extR, passes: 1)
+        let extColor = DisocclusionInpainter.nearestValidFill(rgb3(color), valid: subj)
+        var fg = FloatImage(width: W, height: H, channels: 4)
+        var fgAField = FloatImage(width: W, height: H, channels: 1)
+        for p in 0..<(W * H) {
+            if subj.pixels[p] > 0.5 {
+                fg.pixels[p*4+0] = color.pixels[p*4+0]; fg.pixels[p*4+1] = color.pixels[p*4+1]; fg.pixels[p*4+2] = color.pixels[p*4+2]
+            } else {
+                fg.pixels[p*4+0] = extColor.pixels[p*3+0]; fg.pixels[p*4+1] = extColor.pixels[p*3+1]; fg.pixels[p*4+2] = extColor.pixels[p*3+2]
+            }
+            let a = max(mask.pixels[p], 0.42 * min(1, cov.pixels[p]))
+            fg.pixels[p*4+3] = a
+            fgAField.pixels[p] = a
+        }
+
         guard let depthTex = fgDisp.uploadScalarTexture(),
               let fgColorTex = fg.uploadColorTexture(),
               let bgColorTex = bgColorImg.uploadColorTexture(),
@@ -142,7 +152,7 @@ final class Photo3DPipeline {
 
         // 构建网格：背景=完整连续网格(平滑视差,无分层环)；前景=主体网格(深度断层处切开,无橡皮膜糊影)。
         guard let mesh = MeshBuilder.build(width: W, height: H,
-                                           disparity: fgDisp, matte: mask,
+                                           disparity: fgDisp, matte: fgAField,
                                            stride: 2, tauCut: 0.05) else {
             throw PipelineError.textureAllocation
         }
