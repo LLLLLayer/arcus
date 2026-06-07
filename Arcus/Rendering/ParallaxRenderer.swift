@@ -21,6 +21,7 @@ struct ViewerParams {
     var debugMode: Int32 = 0             // 0 正常,1 深度,2 主体,3 背景
     var motionEnabled: Bool = true
     var autoAnimate: Bool = false
+    var multiLayerBg: Bool = false       // 背景再分层（近景背景中间层 + 远景背景打底）
 }
 
 /// Metal 连续深度网格 warp 渲染器（2 层软 LDI，无深度缓冲——靠绘制顺序 + 剪影切口处理遮挡）：
@@ -127,17 +128,36 @@ final class ParallaxRenderer: NSObject, MTKViewDelegate {
         let stride = MemoryLayout<MeshUniforms>.stride
         enc.setVertexBuffer(scene.vertexBuffer, offset: 0, index: 0)
 
-        // ---- 背景：完整网格，不透明，按背景深度位移 ----
+        let ml = (params.multiLayerBg ? scene.multiLayer : nil)
+
+        // ---- 背景打底：完整网格，不透明，按背景深度位移 ----
+        // 多层开启时用「远景背景」(主体+近景背景已去除并填充)，否则用普通完整背景。
         if scene.bgIndexCount > 0 {
             enc.setRenderPipelineState(opaqueState)
             var ub = uniforms; ub.layerFactor = params.bgParallaxFactor; ub.fgFlag = 0
             enc.setVertexBytes(&ub, length: stride, index: 1)
-            enc.setVertexTexture(scene.bgDepth, index: 0)
+            let bgC = ml?.farColor ?? scene.bgColor
+            let bgD = ml?.farDepth ?? scene.bgDepth
+            enc.setVertexTexture(bgD, index: 0)
             enc.setFragmentBytes(&ub, length: stride, index: 1)
-            enc.setFragmentTexture(scene.bgColor, index: 0)
-            enc.setFragmentTexture(scene.bgDepth, index: 1)
+            enc.setFragmentTexture(bgC, index: 0)
+            enc.setFragmentTexture(bgD, index: 1)
             enc.drawIndexedPrimitives(type: .triangle, indexCount: scene.bgIndexCount,
                                       indexType: .uint32, indexBuffer: scene.bgIndexBuffer,
+                                      indexBufferOffset: 0)
+        }
+
+        // ---- 中间层：近景背景，切开的网格，over 混合，按背景视差缩放(但用近景背景深度，故比远景动得多) ----
+        if let ml = ml, ml.midIndexCount > 0 {
+            enc.setRenderPipelineState(blendState)
+            var um = uniforms; um.layerFactor = params.bgParallaxFactor; um.fgFlag = 1
+            enc.setVertexBytes(&um, length: stride, index: 1)
+            enc.setVertexTexture(ml.midDepth, index: 0)
+            enc.setFragmentBytes(&um, length: stride, index: 1)
+            enc.setFragmentTexture(ml.midColor, index: 0)
+            enc.setFragmentTexture(ml.midDepth, index: 1)
+            enc.drawIndexedPrimitives(type: .triangle, indexCount: ml.midIndexCount,
+                                      indexType: .uint32, indexBuffer: ml.midIndexBuffer,
                                       indexBufferOffset: 0)
         }
 

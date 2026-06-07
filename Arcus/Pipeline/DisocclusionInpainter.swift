@@ -12,20 +12,12 @@ enum DisocclusionInpainter {
         var weight: [Float]  // w*h
     }
 
-    /// 最近有效像素填充（Jump Flooding Algorithm, Rong & Tan 2006）：
-    /// 每个洞像素复制其「最近的已知背景像素」颜色。相比 push-pull 的金字塔扩散（会糊），
-    /// 它是「直接复制真实像素」→ 锐利、纹理真实，且只用真实背景色（绝不产生彩虹）。
-    /// 露出的去遮挡窄带紧贴剪影，最近背景就在旁边 → 看起来像背景自然延续。
-    /// O(n·log(maxDim))，一次性可接受。
-    static func nearestValidFill(_ image: FloatImage, valid: FloatImage) -> FloatImage {
-        precondition(valid.channels == 1 && valid.width == image.width && valid.height == image.height)
-        let w = image.width, h = image.height, ch = image.channels, n = w * h
-        // 每像素记录「最近种子(已知像素)」的坐标。
+    /// 每像素「最近已知背景像素」的坐标（Jump Flooding, Rong & Tan 2006）。O(n·log(maxDim))。
+    private static func nearestSeeds(_ valid: FloatImage) -> (sx: [Int32], sy: [Int32]) {
+        let w = valid.width, h = valid.height, n = w * h
         var sx = [Int32](repeating: -1, count: n)
         var sy = [Int32](repeating: -1, count: n)
-        for p in 0..<n where valid.pixels[p] > 0.5 {
-            sx[p] = Int32(p % w); sy[p] = Int32(p / w)
-        }
+        for p in 0..<n where valid.pixels[p] > 0.5 { sx[p] = Int32(p % w); sy[p] = Int32(p / w) }
         var tx = sx, ty = sy
         var step = 1
         while step < max(w, h) { step <<= 1 }
@@ -60,10 +52,123 @@ enum DisocclusionInpainter {
             swap(&sx, &tx); swap(&sy, &ty)
             step >>= 1
         }
+        return (sx, sy)
+    }
+
+    /// 纯最近有效像素填充（锐利，但凸轮廓会聚处会出现放射状「风车/星芒」接缝）。保留备用。
+    static func nearestValidFill(_ image: FloatImage, valid: FloatImage) -> FloatImage {
+        let (sx, sy) = nearestSeeds(valid)
+        let w = image.width, ch = image.channels, n = image.width * image.height
         var out = image
         for p in 0..<n where valid.pixels[p] <= 0.5 && sx[p] >= 0 {
             let q = Int(sy[p]) * w + Int(sx[p])
             for c in 0..<ch { out.pixels[p * ch + c] = image.pixels[q * ch + c] }
+        }
+        return out
+    }
+
+    /// 竖直延续填充：每个洞像素沿「列」复制最近的已知背景像素(上/下)。
+    /// 站立主体背后的背景多为竖直结构(树干/墙/天空) → 竖直延续最自然：锐利、无星芒、无灰带。
+    /// 再把竖直填充产生的「横向突变」(横向结构被拉成竖条纹处)做轻微横向柔化，优雅降级。
+    static func verticalFill(_ image: FloatImage, valid: FloatImage) -> FloatImage {
+        let w = image.width, h = image.height, ch = image.channels, n = w * h
+        // 每像素的「最近已知像素」行号：列向上 / 列向下，各一遍 O(n)。
+        var upIdx = [Int32](repeating: -1, count: n)
+        var dnIdx = [Int32](repeating: -1, count: n)
+        for x in 0..<w {
+            var last: Int32 = -1
+            for y in 0..<h { let p = y * w + x; if valid.pixels[p] > 0.5 { last = Int32(y) }; upIdx[p] = last }
+            last = -1
+            var y = h - 1
+            while y >= 0 { let p = y * w + x; if valid.pixels[p] > 0.5 { last = Int32(y) }; dnIdx[p] = last; y -= 1 }
+        }
+        var vfill = image
+        for x in 0..<w {
+            for y in 0..<h {
+                let p = y * w + x
+                if valid.pixels[p] > 0.5 { continue }
+                let up = upIdx[p], dn = dnIdx[p]
+                var src: Int32 = -1
+                if up >= 0 && dn >= 0 { src = (y - Int(up)) <= (Int(dn) - y) ? up : dn }
+                else if up >= 0 { src = up } else { src = dn }
+                if src >= 0 { let q = Int(src) * w + x; for c in 0..<ch { vfill.pixels[p * ch + c] = image.pixels[q * ch + c] } }
+            }
+        }
+        // 竖条纹去除：竖直填充在复杂结构(树冠等)处会拉出细竖条纹。检测「局部横向方差高」
+        // (=条纹)的洞像素，按方差强度把它混向横向模糊；连贯竖直结构(单根树干)保持锐利。
+        let r = max(3, w / 60)
+        var blurH = vfill
+        vfill.pixels.withUnsafeBufferPointer { src in
+            blurH.pixels.withUnsafeMutableBufferPointer { dst in
+                for y in 0..<h {
+                    let row = y * w
+                    for x in 0..<w {
+                        for c in 0..<ch {
+                            var s: Float = 0, cnt: Float = 0, i = -r
+                            while i <= r { let xx = x + i; if xx >= 0 && xx < w { s += src[(row + xx) * ch + c]; cnt += 1 }; i += 1 }
+                            dst[(row + x) * ch + c] = s / cnt
+                        }
+                    }
+                }
+            }
+        }
+        var out = vfill
+        let vr = max(2, w / 100)
+        for y in 0..<h {
+            for x in 0..<w {
+                let p = y * w + x
+                if valid.pixels[p] > 0.5 { continue }
+                var m: Float = 0, m2: Float = 0, cnt: Float = 0, i = -vr
+                while i <= vr {
+                    let xx = x + i
+                    if xx >= 0 && xx < w {
+                        let q = (y * w + xx) * ch
+                        let lum = 0.3 * vfill.pixels[q] + 0.59 * vfill.pixels[q + 1] + 0.11 * vfill.pixels[q + 2]
+                        m += lum; m2 += lum * lum; cnt += 1
+                    }
+                    i += 1
+                }
+                let mean = m / cnt
+                let std = (max(0, m2 / cnt - mean * mean)).squareRoot()
+                let wgt = min(1, max(0, (std - 0.04) / 0.10))
+                if wgt > 0.01 { for c in 0..<ch { out.pixels[p * ch + c] = vfill.pixels[p * ch + c] * (1 - wgt) + blurH.pixels[p * ch + c] * wgt } }
+            }
+        }
+        return out
+    }
+
+    /// 接缝感知填充：在「连贯」处用最近有效像素（锐利、真实纹理），仅在「种子不连续的接缝」
+    /// （纯最近会形成放射状星芒之处）切换为 push-pull 平滑扩散 → 既不糊、也无星芒。
+    /// 实测优于纯最近(星芒)与纯 push-pull(糊)。
+    static func seamAwareFill(_ image: FloatImage, valid: FloatImage) -> FloatImage {
+        let w = image.width, h = image.height, ch = image.channels, n = w * h
+        let (sx, sy) = nearestSeeds(valid)
+        var nearest = image
+        for p in 0..<n where valid.pixels[p] <= 0.5 && sx[p] >= 0 {
+            let q = Int(sy[p]) * w + Int(sx[p])
+            for c in 0..<ch { nearest.pixels[p * ch + c] = image.pixels[q * ch + c] }
+        }
+        let smooth = pushPullFill(image, valid: valid)
+        // 接缝强度：相邻洞像素「种子坐标」跳变大处即为接缝(星芒边界)。
+        var seam = FloatImage(width: w, height: h, channels: 1)
+        for y in 0..<h {
+            for x in 0..<w {
+                let p = y * w + x
+                if valid.pixels[p] > 0.5 || sx[p] < 0 { continue }
+                var m: Int32 = 0
+                if x + 1 < w { let q = p + 1; if sx[q] >= 0 { m = max(m, abs(sx[p]-sx[q]) + abs(sy[p]-sy[q])) } }
+                if y + 1 < h { let q = p + w; if sx[q] >= 0 { m = max(m, abs(sx[p]-sx[q]) + abs(sy[p]-sy[q])) } }
+                seam.pixels[p] = m >= 4 ? 1 : 0
+            }
+        }
+        // 膨胀覆盖星芒邻域 + 柔化成 0…1 过渡。
+        let seamMask = seam.dilated(radius: max(6, w / 64)).boxBlurred(radius: max(5, w / 80), passes: 1)
+        var out = nearest
+        for p in 0..<n where valid.pixels[p] <= 0.5 {
+            let wgt = min(1, max(0, seamMask.pixels[p]))
+            for c in 0..<ch {
+                out.pixels[p * ch + c] = nearest.pixels[p * ch + c] * (1 - wgt) + smooth.pixels[p * ch + c] * wgt
+            }
         }
         return out
     }

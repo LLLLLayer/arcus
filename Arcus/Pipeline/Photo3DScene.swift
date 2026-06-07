@@ -7,6 +7,18 @@ import CoreGraphics
 /// offset=0 时合成 == 原图；移动相机时前景按"逐像素"深度连续位移（无分层环、无纸片感），
 /// 剪影断层处的三角形被剔除，露出其后被补全的背景（窄环带，无大光晕）。
 final class Photo3DScene: @unchecked Sendable {
+    /// 背景再分层（可选）：把背景拆成「近景背景」中间层 + 「远景背景」打底层，
+    /// 让背景自身也有视差与相互遮挡。开关打开时渲染器才用它。
+    struct MultiLayer {
+        let midColor: MTLTexture     // rgba8: rgb=原图, a=近景背景 matte
+        let midDepth: MTLTexture     // r16f : 近景背景视差
+        let midIndexBuffer: MTLBuffer
+        let midIndexCount: Int
+        let farColor: MTLTexture     // rgba8: 远景背景(主体+近景背景均已去除并填充)
+        let farDepth: MTLTexture     // r16f : 远景背景视差
+    }
+    let multiLayer: MultiLayer?
+
     let width: Int
     let height: Int
     var aspect: Float { Float(width) / Float(height) }
@@ -44,7 +56,9 @@ final class Photo3DScene: @unchecked Sendable {
          fgIndexBuffer: MTLBuffer, fgIndexCount: Int,
          suggestedParallax: Float,
          depthPreview: CGImage?, maskPreview: CGImage?, backgroundPreview: CGImage?,
-         depthSource: String, segmentSource: String, inpaintSource: String) {
+         depthSource: String, segmentSource: String, inpaintSource: String,
+         multiLayer: MultiLayer? = nil) {
+        self.multiLayer = multiLayer
         self.width = width
         self.height = height
         self.fgColor = fgColor

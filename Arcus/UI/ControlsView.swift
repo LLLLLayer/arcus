@@ -47,6 +47,12 @@ struct ControlsView: View {
                     .toggleStyle(.button)
                     .tint(.purple)
 
+                    Toggle(isOn: $model.params.multiLayerBg) {
+                        Label("背景分层", systemImage: "square.3.layers.3d").font(.caption)
+                    }
+                    .toggleStyle(.button)
+                    .tint(.orange)
+
                     Spacer()
                 }
                 .foregroundStyle(.white)

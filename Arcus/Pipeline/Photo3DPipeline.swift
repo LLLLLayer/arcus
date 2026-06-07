@@ -81,11 +81,10 @@ final class Photo3DPipeline {
         var validFull = FloatImage(width: W, height: H, channels: 1)
         for p in 0..<(W * H) { validFull.pixels[p] = subj.pixels[p] > 0.5 ? 0 : 1 }
 
-        // 背景颜色：用「最近有效像素」(Jump Flooding) 在原分辨率直接复制真实背景像素。
-        // 相比 push-pull 的金字塔扩散(会糊)，它锐利、纹理真实；又只用真实背景色(绝不彩虹)。
-        // 露出的去遮挡窄带紧贴剪影 → 复制到的就是旁边的真实背景，像自然延续，不再"虚化"。
-        let bgColorImg = DisocclusionInpainter.nearestValidFill(rgb3(color), valid: validFull)
-        let inpaintSource = "nearest"
+        // 背景颜色：竖直延续填充——沿列复制最近的真实背景像素。站立主体背后多为竖直结构(树/墙/天空)，
+        // 竖直延续 → 锐利、真实、无星芒、无灰带；横向结构处自动柔化降级。
+        let bgColorImg = DisocclusionInpainter.verticalFill(rgb3(color), valid: validFull)
+        let inpaintSource = "vertical"
 
         // 背景深度：降采样上 push-pull（深度平滑无妨），主体区按背景视差填充。
         let inpaintSide = 640
@@ -143,6 +142,57 @@ final class Photo3DPipeline {
             throw PipelineError.textureAllocation
         }
 
+        // ===== 背景再分层（近景背景中间层 mid + 远景背景打底 far），供「背景再分层」开关使用 =====
+        // 把「非主体」背景按视差中位数拆成 近景背景(更近、动得多) / 远景背景(更远、动得少)。
+        var midThr: Float = 0.5
+        var bgVals = [Float](); bgVals.reserveCapacity(W * H)
+        for p in 0..<(W * H) where subj.pixels[p] < 0.5 { bgVals.append(disparity.pixels[p]) }
+        if !bgVals.isEmpty { bgVals.sort(); midThr = bgVals[bgVals.count / 2] }
+        let midBand: Float = 0.06
+        var midMatte = FloatImage(width: W, height: H, channels: 1)
+        for p in 0..<(W * H) {
+            midMatte.pixels[p] = subj.pixels[p] < 0.5 ? smoothStep(midThr - midBand, midThr + midBand, disparity.pixels[p]) : 0
+        }
+        midMatte = midMatte.boxBlurred(radius: max(2, W / 200), passes: 1)   // 去掉散点
+        var midBin = FloatImage(width: W, height: H, channels: 1)
+        for p in 0..<(W * H) { midBin.pixels[p] = midMatte.pixels[p] > 0.5 ? 1 : 0 }
+        // 近景背景深度：带掩膜平滑(去噪) + 外扩（同前景技巧，避免网格撕裂）。
+        var mdmul = FloatImage(width: W, height: H, channels: 1)
+        for p in 0..<(W * H) { mdmul.pixels[p] = disparity.pixels[p] * midBin.pixels[p] }
+        let mnum = mdmul.boxBlurred(radius: rBlur, passes: 2)
+        let mden = midBin.boxBlurred(radius: rBlur, passes: 2)
+        var midDisp = disparity
+        for p in 0..<(W * H) where midBin.pixels[p] > 0.5 {
+            midDisp.pixels[p] = mden.pixels[p] > 0.01 ? mnum.pixels[p] / mden.pixels[p] : disparity.pixels[p]
+        }
+        let midDil = midBin.dilated(radius: extR)
+        let midDispDil = midDisp.dilated(radius: extR)
+        for p in 0..<(W * H) where midDil.pixels[p] > 0.5 && midBin.pixels[p] < 0.5 {
+            midDisp.pixels[p] = midDispDil.pixels[p]
+        }
+        var midRGBA = FloatImage(width: W, height: H, channels: 4)
+        for p in 0..<(W * H) {
+            midRGBA.pixels[p * 4 + 0] = color.pixels[p * 4 + 0]; midRGBA.pixels[p * 4 + 1] = color.pixels[p * 4 + 1]
+            midRGBA.pixels[p * 4 + 2] = color.pixels[p * 4 + 2]; midRGBA.pixels[p * 4 + 3] = midMatte.pixels[p]
+        }
+        // 远景背景 = 去除(主体 ∪ 近景背景)后填充：颜色竖直填充，深度远侧 push-pull。
+        var farValid = FloatImage(width: W, height: H, channels: 1)
+        for p in 0..<(W * H) { farValid.pixels[p] = (subj.pixels[p] > 0.5 || midBin.pixels[p] > 0.5) ? 0 : 1 }
+        let farColorImg = DisocclusionInpainter.verticalFill(rgb3(color), valid: farValid)
+        let farValidSmall = farValid.resized(to: iw, to: ih)
+        let farDepthImg = DisocclusionInpainter.pushPullFill(dispSmall, valid: farValidSmall).resized(to: W, to: H)
+        var multiLayer: Photo3DScene.MultiLayer?
+        if let midMesh = MeshBuilder.build(width: W, height: H, disparity: midDisp, matte: midMatte, stride: 2, tauCut: 0.05),
+           let midColorTex = midRGBA.uploadColorTexture(),
+           let midDepthTex = midDisp.uploadScalarTexture(),
+           let farColorTex = farColorImg.uploadColorTexture(),
+           let farDepthTex = farDepthImg.uploadScalarTexture() {
+            multiLayer = Photo3DScene.MultiLayer(
+                midColor: midColorTex, midDepth: midDepthTex,
+                midIndexBuffer: midMesh.fgIndexBuffer, midIndexCount: midMesh.fgIndexCount,
+                farColor: farColorTex, farDepth: farDepthTex)
+        }
+
         // 视差幅度建议：按深度分布的展开度。
         let suggested = suggestedParallax(from: disparity)
 
@@ -160,7 +210,8 @@ final class Photo3DPipeline {
             suggestedParallax: suggested,
             depthPreview: nil, maskPreview: nil, backgroundPreview: nil,
             depthSource: depthResult.source.rawValue,
-            segmentSource: segSource, inpaintSource: inpaintSource)
+            segmentSource: segSource, inpaintSource: inpaintSource,
+            multiLayer: multiLayer)
     }
 
     // MARK: - 辅助
