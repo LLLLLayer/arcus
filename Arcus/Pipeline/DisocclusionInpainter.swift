@@ -137,6 +137,111 @@ enum DisocclusionInpainter {
         return out
     }
 
+    /// PatchMatch 内容感知填充（Barnes et al. 2009）：给洞里每个块找「最相似的真实纹理块」复制并投票，
+    /// EM 迭代(随机最近邻匹配=随机初始化+传播+随机搜索)。比竖直填充更连贯(任意结构都行、无条纹)，
+    /// 但 CPU 上较慢——内部降采样到 maxSide 跑搜索，再上采回洞(已知像素保持全分辨率锐利)。
+    static func patchMatchFill(_ image: FloatImage, valid: FloatImage, maxSide: Int = 512) -> FloatImage {
+        let longSide = max(image.width, image.height)
+        if longSide <= maxSide { return patchMatchCore(image, valid: valid) }
+        let s = Float(maxSide) / Float(longSide)
+        let sw = max(8, Int((Float(image.width) * s).rounded()))
+        let sh = max(8, Int((Float(image.height) * s).rounded()))
+        let imgS = image.resized(to: sw, to: sh)
+        var validS = valid.resized(to: sw, to: sh)
+        for p in 0..<(sw * sh) { validS.pixels[p] = validS.pixels[p] > 0.5 ? 1 : 0 }
+        let filledS = patchMatchCore(imgS, valid: validS).resized(to: image.width, to: image.height)
+        var out = image
+        let ch = image.channels
+        for p in 0..<(image.width * image.height) where valid.pixels[p] <= 0.5 {
+            for c in 0..<ch { out.pixels[p * ch + c] = filledS.pixels[p * ch + c] }
+        }
+        return out
+    }
+
+    private static func patchMatchCore(_ image: FloatImage, valid: FloatImage) -> FloatImage {
+        let w = image.width, h = image.height, ch = image.channels, n = w * h
+        let P = 3, emN = 2, pmIterN = 3
+        var filled = verticalFill(image, valid: valid)        // 好的初始化 → 收敛快
+        // 源块中心：整 PxP 块都已知。
+        var srcX = [Int](), srcY = [Int]()
+        for y in P..<(h - P) {
+            for x in P..<(w - P) {
+                var ok = true
+                loop: for dy in -P...P { for dx in -P...P { if valid.pixels[(y+dy)*w+(x+dx)] < 0.5 { ok = false; break loop } } }
+                if ok { srcX.append(x); srcY.append(y) }
+            }
+        }
+        let ns = srcX.count
+        if ns == 0 { return filled }
+        var holeIdx = [Int](); for p in 0..<n where valid.pixels[p] <= 0.5 { holeIdx.append(p) }
+        var nx = [Int32](repeating: 0, count: n), ny = [Int32](repeating: 0, count: n)
+        var seed: UInt64 = 88172645463325252
+        func rnd() -> UInt64 { seed ^= seed << 13; seed ^= seed >> 7; seed ^= seed << 17; return seed }
+        for p in holeIdx { let k = Int(rnd() % UInt64(ns)); nx[p] = Int32(srcX[k]); ny[p] = Int32(srcY[k]) }
+        func pdist(_ x: Int, _ y: Int, _ sx: Int, _ sy: Int, _ best: Float) -> Float {
+            var s: Float = 0
+            for dy in -P...P {
+                let yy = y+dy, syy = sy+dy
+                if yy < 0 || yy >= h { return .greatestFiniteMagnitude }
+                for dx in -P...P {
+                    let xx = x+dx, sxx = sx+dx
+                    if xx < 0 || xx >= w { return .greatestFiniteMagnitude }
+                    let a = (yy*w+xx)*ch, b = (syy*w+sxx)*ch
+                    let d0 = filled.pixels[a]-image.pixels[b], d1 = filled.pixels[a+1]-image.pixels[b+1], d2 = filled.pixels[a+2]-image.pixels[b+2]
+                    s += d0*d0 + d1*d1 + d2*d2
+                }
+                if s > best { return s }
+            }
+            return s
+        }
+        for _ in 0..<emN {
+            for it in 0..<pmIterN {
+                let fwd = it % 2 == 0
+                let order = fwd ? holeIdx : holeIdx.reversed().map { $0 }
+                for p in order {
+                    let x = p % w, y = p / w
+                    var bsx = Int(nx[p]), bsy = Int(ny[p])
+                    var bd = pdist(x, y, bsx, bsy, .greatestFiniteMagnitude)
+                    for off in (fwd ? [-1, -w] : [1, w]) {
+                        let q = p + off
+                        if q < 0 || q >= n || valid.pixels[q] > 0.5 { continue }
+                        var csx = Int(nx[q]), csy = Int(ny[q])
+                        if off == -1 { csx += 1 } else if off == 1 { csx -= 1 } else if off == -w { csy += 1 } else { csy -= 1 }
+                        if csx < P || csx >= w-P || csy < P || csy >= h-P { continue }
+                        let d = pdist(x, y, csx, csy, bd); if d < bd { bd = d; bsx = csx; bsy = csy }
+                    }
+                    var rad = max(w, h)
+                    while rad >= 1 {
+                        let rx = bsx + Int(rnd() % UInt64(2*rad+1)) - rad
+                        let ry = bsy + Int(rnd() % UInt64(2*rad+1)) - rad
+                        if rx >= P && rx < w-P && ry >= P && ry < h-P {
+                            let d = pdist(x, y, rx, ry, bd); if d < bd { bd = d; bsx = rx; bsy = ry }
+                        }
+                        rad /= 2
+                    }
+                    nx[p] = Int32(bsx); ny[p] = Int32(bsy)
+                }
+            }
+            // 投票：每个洞像素 = 覆盖它的所有块对应源像素的平均。
+            var acc = [Float](repeating: 0, count: n*ch), wsum = [Float](repeating: 0, count: n)
+            for p in holeIdx {
+                let x = p % w, y = p / w, sx = Int(nx[p]), sy = Int(ny[p])
+                for dy in -P...P {
+                    let yy = y+dy, syy = sy+dy; if yy < 0 || yy >= h { continue }
+                    for dx in -P...P {
+                        let xx = x+dx, sxx = sx+dx; if xx < 0 || xx >= w { continue }
+                        let tp = yy*w+xx; if valid.pixels[tp] > 0.5 { continue }
+                        let b = (syy*w+sxx)*ch
+                        for c in 0..<ch { acc[tp*ch+c] += image.pixels[b+c] }
+                        wsum[tp] += 1
+                    }
+                }
+            }
+            for p in holeIdx where wsum[p] > 0 { for c in 0..<ch { filled.pixels[p*ch+c] = acc[p*ch+c]/wsum[p] } }
+        }
+        return filled
+    }
+
     /// 接缝感知填充：在「连贯」处用最近有效像素（锐利、真实纹理），仅在「种子不连续的接缝」
     /// （纯最近会形成放射状星芒之处）切换为 push-pull 平滑扩散 → 既不糊、也无星芒。
     /// 实测优于纯最近(星芒)与纯 push-pull(糊)。

@@ -92,6 +92,17 @@ private struct IdleView: View {
             Spacer()
 
             VStack(spacing: 14) {
+                Toggle(isOn: $model.highQualityFill) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("高质量背景补全").font(.subheadline.weight(.semibold)).foregroundStyle(.white)
+                        Text("PatchMatch 内容感知 · 更连贯，但处理较慢（约 1–3 分钟）")
+                            .font(.caption2).foregroundStyle(.white.opacity(0.55))
+                    }
+                }
+                .tint(.orange)
+                .padding(14)
+                .background(.white.opacity(0.06), in: RoundedRectangle(cornerRadius: 14))
+
                 PhotosPicker(selection: $pickerItem, matching: .images, photoLibrary: .shared()) {
                     Label("选择照片", systemImage: "photo.on.rectangle.angled")
                         .font(.headline)

@@ -10,6 +10,8 @@ final class Photo3DPipeline {
         var maxWorkingSide: Int = 1024
         /// 去遮挡环带半径占长边比例（决定背景被补全的范围，≈最大像素视差）。
         var ringRadiusFraction: Float = 0.045
+        /// 高质量背景补全：用 PatchMatch 内容感知填充（更连贯但慢，约 1–3 分钟）。默认关。
+        var highQualityFill: Bool = false
     }
 
     enum PipelineError: Error { case badImage, textureAllocation }
@@ -81,10 +83,13 @@ final class Photo3DPipeline {
         var validFull = FloatImage(width: W, height: H, channels: 1)
         for p in 0..<(W * H) { validFull.pixels[p] = subj.pixels[p] > 0.5 ? 0 : 1 }
 
-        // 背景颜色：竖直延续填充——沿列复制最近的真实背景像素。站立主体背后多为竖直结构(树/墙/天空)，
-        // 竖直延续 → 锐利、真实、无星芒、无灰带；横向结构处自动柔化降级。
-        let bgColorImg = DisocclusionInpainter.verticalFill(rgb3(color), valid: validFull)
-        let inpaintSource = "vertical"
+        // 背景颜色：默认竖直延续填充(快、锐利)；开启「高质量」时用 PatchMatch 内容感知填充(慢、更连贯)。
+        if options.highQualityFill { progress(0.62, "高质量补全背景（PatchMatch，较慢）…") }
+        let fillFn: (FloatImage, FloatImage) -> FloatImage = options.highQualityFill
+            ? { DisocclusionInpainter.patchMatchFill($0, valid: $1) }
+            : { DisocclusionInpainter.verticalFill($0, valid: $1) }
+        let bgColorImg = fillFn(rgb3(color), validFull)
+        let inpaintSource = options.highQualityFill ? "PatchMatch" : "vertical"
 
         // 背景深度：降采样上 push-pull（深度平滑无妨），主体区按背景视差填充。
         let inpaintSide = 640
@@ -178,7 +183,9 @@ final class Photo3DPipeline {
         // 远景背景 = 去除(主体 ∪ 近景背景)后填充：颜色竖直填充，深度远侧 push-pull。
         var farValid = FloatImage(width: W, height: H, channels: 1)
         for p in 0..<(W * H) { farValid.pixels[p] = (subj.pixels[p] > 0.5 || midBin.pixels[p] > 0.5) ? 0 : 1 }
-        let farColorImg = DisocclusionInpainter.verticalFill(rgb3(color), valid: farValid)
+        // 远景层颜色直接复用主背景填充(含树的全背景)，近景树移开后露出的是树而非灰路；
+        // 远景的「深度」仍按远侧填充(farValid)保持分层。也少跑一次填充更快。
+        let farColorImg = bgColorImg
         let farValidSmall = farValid.resized(to: iw, to: ih)
         let farDepthImg = DisocclusionInpainter.pushPullFill(dispSmall, valid: farValidSmall).resized(to: W, to: H)
         var multiLayer: Photo3DScene.MultiLayer?
