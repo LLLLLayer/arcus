@@ -154,6 +154,10 @@ final class ParallaxRenderer: NSObject, MTKViewDelegate {
         if let ml = ml, ml.midIndexCount > 0 {
             enc.setRenderPipelineState(blendState)
             var um = uniforms; um.layerFactor = params.bgParallaxFactor; um.fgFlag = 1
+            // 中间层也「整体放大」盖住其身后远景的去遮挡带。比前景温和(它动得少、露出的带更窄)：
+            // 取前景放大量的 0.6 倍，绕近景背景自身质心。
+            um.fgScale = 1 + (params.fgScale - 1) * 0.6
+            um.fgCenter = ml.midCenter
             enc.setVertexBytes(&um, length: stride, index: 1)
             enc.setVertexTexture(ml.midDepth, index: 0)
             enc.setFragmentBytes(&um, length: stride, index: 1)

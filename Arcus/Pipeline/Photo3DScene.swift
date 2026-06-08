@@ -17,6 +17,7 @@ final class Photo3DScene: @unchecked Sendable {
         let midIndexCount: Int
         let farColor: MTLTexture     // rgba8: 远景背景(主体+近景背景均已去除并填充)
         let farDepth: MTLTexture     // r16f : 远景背景视差
+        let midCenter: SIMD2<Float>  // 近景背景质心(uv)，中间层「放大」的支点（盖住其身后远景的去遮挡带）
     }
     let multiLayer: MultiLayer?
 
