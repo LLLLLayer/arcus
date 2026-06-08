@@ -168,6 +168,53 @@ enum DisocclusionInpainter {
         return out
     }
 
+    /// 平面拟合填充：用最小二乘平面 z = a·u + b·v + c（u=x/w, v=y/h）拟合已知区(valid>0.5)的 1ch 标量(视差)，
+    /// 把洞(valid≤0.5)填成该平面；已知区保持原值。
+    /// 用途：MI-GAN 等「凭空生成」的背景没有真实深度，给洞一个平整(可倾斜)的背景平面，
+    /// 比平滑扩散更稳——生成内容不会随深度的局部起伏被 warp 出「鼓包」。退化(共线/无样本)时回退常数均值。
+    static func planarFill(_ image: FloatImage, valid: FloatImage) -> FloatImage {
+        precondition(image.channels == 1)
+        let w = image.width, h = image.height
+        var Suu = 0.0, Suv = 0.0, Su = 0.0, Svv = 0.0, Sv = 0.0, N = 0.0
+        var Suz = 0.0, Svz = 0.0, Sz = 0.0
+        for y in 0..<h {
+            for x in 0..<w where valid.pixels[y * w + x] > 0.5 {
+                let u = Double(x) / Double(w), v = Double(y) / Double(h), z = Double(image.pixels[y * w + x])
+                Suu += u * u; Suv += u * v; Su += u; Svv += v * v; Sv += v; N += 1
+                Suz += u * z; Svz += v * z; Sz += z
+            }
+        }
+        var a = 0.0, b = 0.0, c = (N > 0 ? Sz / N : 0.5)
+        // 解 3×3 正规方程 [Suu Suv Su; Suv Svv Sv; Su Sv N]·[a b c]ᵀ = [Suz Svz Sz]ᵀ（Cramer）。
+        let det =
+            Suu * (Svv * N - Sv * Sv) -
+            Suv * (Suv * N - Sv * Su) +
+            Su  * (Suv * Sv - Svv * Su)
+        if N >= 8, abs(det) > 1e-9 {
+            let da =
+                Suz * (Svv * N - Sv * Sv) -
+                Suv * (Svz * N - Sv * Sz) +
+                Su  * (Svz * Sv - Svv * Sz)
+            let db =
+                Suu * (Svz * N - Sv * Sz) -
+                Suz * (Suv * N - Sv * Su) +
+                Su  * (Suv * Sz - Svz * Su)
+            let dc =
+                Suu * (Svv * Sz - Svz * Sv) -
+                Suv * (Suv * Sz - Svz * Su) +
+                Suz * (Suv * Sv - Svv * Su)
+            a = da / det; b = db / det; c = dc / det
+        }
+        var out = image
+        for y in 0..<h {
+            for x in 0..<w where valid.pixels[y * w + x] <= 0.5 {
+                let u = Double(x) / Double(w), v = Double(y) / Double(h)
+                out.pixels[y * w + x] = Float(min(1, max(0, a * u + b * v + c)))
+            }
+        }
+        return out
+    }
+
     /// PatchMatch 内容感知填充（Barnes et al. 2009）：给洞里每个块找「最相似的真实纹理块」复制并投票，
     /// EM 迭代(随机最近邻匹配=随机初始化+传播+随机搜索)。比竖直填充更连贯(任意结构都行、无条纹)，
     /// 但 CPU 上较慢——内部降采样到 maxSide 跑搜索，再上采回洞(已知像素保持全分辨率锐利)。

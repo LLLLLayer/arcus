@@ -115,7 +115,10 @@ final class Photo3DPipeline {
         switch options.fillMode {
         case .migan:
             progress(0.62, "AI 补全背景（MI-GAN，端侧生成）…")
-            if let mig = miganInpainter.inpaint(rgb: rgbColor, hole: subj) {
+            // 把洞(主体)小幅外扩再喂给 MI-GAN，确保人被完全盖住——否则模型看到边缘的人像残片(发丝/衣角)
+            // 会把人「续」进可见带里。外扩环带在静止时被前景遮住、动起来正是要生成的带，故只赚不亏。
+            let migHole = subj.dilated(radius: max(6, W / 100))
+            if let mig = miganInpainter.inpaint(rgb: rgbColor, hole: migHole) {
                 bgColorImg = mig
                 inpaintSource = "MI-GAN"
             } else {
@@ -131,14 +134,21 @@ final class Photo3DPipeline {
             inpaintSource = "vertical+depth"
         }
 
-        // 背景深度：降采样上 push-pull（深度平滑无妨），主体区按背景视差填充。
+        // 背景深度：洞(主体区)按背景视差填充。普通模式用 push-pull 平滑扩散(保留周围结构)；
+        // MI-GAN 模式把洞「拍平到局部背景平面」——生成内容无真实深度，平面比平滑扩散更稳，
+        // 生成的背景不会随深度起伏被 warp 出鼓包/扭动。
         let inpaintSide = 640
         let s = Float(inpaintSide) / longSide
         let iw = max(2, Int((Float(W) * s).rounded()))
         let ih = max(2, Int((Float(H) * s).rounded()))
         let dispSmall = disparity.resized(to: iw, to: ih)
         let validSmall = validFull.resized(to: iw, to: ih)
-        let bgDepthImg = DisocclusionInpainter.pushPullFill(dispSmall, valid: validSmall).resized(to: W, to: H)
+        let bgDepthImg: FloatImage
+        if options.fillMode == .migan {
+            bgDepthImg = DisocclusionInpainter.planarFill(disparity, valid: validFull)
+        } else {
+            bgDepthImg = DisocclusionInpainter.pushPullFill(dispSmall, valid: validSmall).resized(to: W, to: H)
+        }
 
         progress(0.85, "烘焙 3D 网格…")
 
