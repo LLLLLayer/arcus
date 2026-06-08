@@ -48,3 +48,8 @@ echo ""
 echo "🎉 模型就绪于 $DEST"
 echo "   用 Xcode 打开 Arcus.xcodeproj 构建，Xcode 会自动把 .mlpackage 编译进 App。"
 echo "   深度缺失→伪深度兜底；LaMa 缺失→push-pull 兜底（都不会崩，但画质下降）。"
+
+# ── MI-GAN（AI 补全，可选）──────────────────────────────────────────────
+# MI-GAN 需本地转换（非现成 Core ML）。见 scripts/convert_migan.py 顶部说明：
+#   下载 migan.onnx → onnx2torch + coremltools FP16 → Arcus/Resources/MiGAN.mlpackage
+# 缺失时「AI 补全」会自动回退 PatchMatch（不崩）。

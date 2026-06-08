@@ -92,14 +92,17 @@ private struct IdleView: View {
             Spacer()
 
             VStack(spacing: 14) {
-                Toggle(isOn: $model.highQualityFill) {
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text("高质量背景补全").font(.subheadline.weight(.semibold)).foregroundStyle(.white)
-                        Text("PatchMatch 内容感知 · 更连贯，但处理较慢（约 1–3 分钟）")
-                            .font(.caption2).foregroundStyle(.white.opacity(0.55))
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("背景补全").font(.subheadline.weight(.semibold)).foregroundStyle(.white)
+                    Picker("背景补全", selection: $model.fillMode) {
+                        ForEach(FillMode.allCases) { mode in
+                            Text(mode.title).tag(mode)
+                        }
                     }
+                    .pickerStyle(.segmented)
+                    Text(model.fillMode.detail)
+                        .font(.caption2).foregroundStyle(.white.opacity(0.55))
                 }
-                .tint(.orange)
                 .padding(14)
                 .background(.white.opacity(0.06), in: RoundedRectangle(cornerRadius: 14))
 
