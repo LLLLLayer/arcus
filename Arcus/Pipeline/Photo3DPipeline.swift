@@ -125,10 +125,9 @@ final class Photo3DPipeline {
             fgDisp.pixels[p] = fgDispDil.pixels[p]
         }
 
-        // 前景层 rgb+a，并支持「前景外扩」(运行时滑块 fgExtend 实时调)：把主体边缘的颜色与覆盖往外推 extR 带。
-        // alpha：剪影内=细 matte(发丝)；外扩带=随到剪影距离衰减的 0..0.42（着色器按 fgExtend 决定该带露出多少）。
-        // 颜色：外扩带用「最近主体像素」外扩，避免变成背景色光晕。
-        let cov = subj.dilated(radius: extR).boxBlurred(radius: extR, passes: 1)
+        // 前景层 rgb+a：干净锐利主体（无外扩带 ⇒ 边缘零光晕）。「整体放大」改由顶点着色器在
+        // 运行时按 fgScale 绕主体质心完成（放大剪影盖住身后过渡带），故此处只烘焙原尺寸主体。
+        // 颜色：羽化带(剪影外的过渡像素)用「最近主体像素」外扩，避免放大时把背景色拉出一圈边。
         let extColor = DisocclusionInpainter.nearestValidFill(rgb3(color), valid: subj)
         var fg = FloatImage(width: W, height: H, channels: 4)
         var fgAField = FloatImage(width: W, height: H, channels: 1)
@@ -138,10 +137,21 @@ final class Photo3DPipeline {
             } else {
                 fg.pixels[p*4+0] = extColor.pixels[p*3+0]; fg.pixels[p*4+1] = extColor.pixels[p*3+1]; fg.pixels[p*4+2] = extColor.pixels[p*3+2]
             }
-            let a = max(mask.pixels[p], 0.42 * min(1, cov.pixels[p]))
+            let a = mask.pixels[p]
             fg.pixels[p*4+3] = a
             fgAField.pixels[p] = a
         }
+
+        // 主体质心(uv)：前景「整体放大」的支点（绕质心放大 ⇒ 上下左右对称外扩，盖住各方向的去遮挡带）。
+        var cxSum: Double = 0, cySum: Double = 0, cN: Double = 0
+        for y in 0..<H {
+            for x in 0..<W where subj.pixels[y * W + x] > 0.5 {
+                cxSum += Double(x); cySum += Double(y); cN += 1
+            }
+        }
+        let fgCenter = cN > 0
+            ? SIMD2<Float>(Float(cxSum / cN) / Float(W), Float(cySum / cN) / Float(H))
+            : SIMD2<Float>(0.5, 0.5)
 
         guard let depthTex = fgDisp.uploadScalarTexture(),
               let fgColorTex = fg.uploadColorTexture(),
@@ -171,6 +181,16 @@ final class Photo3DPipeline {
         midMatte = midMatte.boxBlurred(radius: max(2, W / 200), passes: 1)   // 去掉散点
         var midBin = FloatImage(width: W, height: H, channels: 1)
         for p in 0..<(W * H) { midBin.pixels[p] = midMatte.pixels[p] > 0.5 ? 1 : 0 }
+        // 近景背景质心(uv)：中间层「放大」的支点（同前景：绕质心放大近景背景，盖住其身后远景的去遮挡带）。
+        var mcx: Double = 0, mcy: Double = 0, mcN: Double = 0
+        for y in 0..<H {
+            for x in 0..<W where midBin.pixels[y * W + x] > 0.5 {
+                mcx += Double(x); mcy += Double(y); mcN += 1
+            }
+        }
+        let midCenter = mcN > 0
+            ? SIMD2<Float>(Float(mcx / mcN) / Float(W), Float(mcy / mcN) / Float(H))
+            : SIMD2<Float>(0.5, 0.5)
         // 近景背景深度：带掩膜平滑(去噪) + 外扩（同前景技巧，避免网格撕裂）。
         var mdmul = FloatImage(width: W, height: H, channels: 1)
         for p in 0..<(W * H) { mdmul.pixels[p] = disparity.pixels[p] * midBin.pixels[p] }
@@ -207,7 +227,8 @@ final class Photo3DPipeline {
             multiLayer = Photo3DScene.MultiLayer(
                 midColor: midColorTex, midDepth: midDepthTex,
                 midIndexBuffer: midMesh.fgIndexBuffer, midIndexCount: midMesh.fgIndexCount,
-                farColor: farColorTex, farDepth: farDepthTex)
+                farColor: farColorTex, farDepth: farDepthTex,
+                midCenter: midCenter)
         }
 
         // 视差幅度建议：按深度分布的展开度。
@@ -228,6 +249,7 @@ final class Photo3DPipeline {
             depthPreview: nil, maskPreview: nil, backgroundPreview: nil,
             depthSource: depthResult.source.rawValue,
             segmentSource: segSource, inpaintSource: inpaintSource,
+            fgCenter: fgCenter,
             multiLayer: multiLayer)
     }
 
