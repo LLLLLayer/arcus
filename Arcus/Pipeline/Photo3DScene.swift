@@ -1,6 +1,7 @@
 import Foundation
 import Metal
 import CoreGraphics
+import simd
 
 /// 端侧管线的烘焙产物：一张连续深度网格（前景在剪影处被切开 + 完整补全背景），
 /// 供实时网格 warp 渲染器零拷贝使用。
@@ -16,12 +17,14 @@ final class Photo3DScene: @unchecked Sendable {
         let midIndexCount: Int
         let farColor: MTLTexture     // rgba8: 远景背景(主体+近景背景均已去除并填充)
         let farDepth: MTLTexture     // r16f : 远景背景视差
+        let midCenter: SIMD2<Float>  // 近景背景质心(uv)，中间层「放大」的支点（盖住其身后远景的去遮挡带）
     }
     let multiLayer: MultiLayer?
 
     let width: Int
     let height: Int
     var aspect: Float { Float(width) / Float(height) }
+    let fgCenter: SIMD2<Float>   // 主体质心(uv 0..1)，前景「整体放大」的支点
 
     // 纹理
     let fgColor: MTLTexture   // rgba8: rgb=原图, a=柔和主体 matte（边缘羽化）
@@ -57,8 +60,10 @@ final class Photo3DScene: @unchecked Sendable {
          suggestedParallax: Float,
          depthPreview: CGImage?, maskPreview: CGImage?, backgroundPreview: CGImage?,
          depthSource: String, segmentSource: String, inpaintSource: String,
+         fgCenter: SIMD2<Float> = SIMD2<Float>(0.5, 0.5),
          multiLayer: MultiLayer? = nil) {
         self.multiLayer = multiLayer
+        self.fgCenter = fgCenter
         self.width = width
         self.height = height
         self.fgColor = fgColor
