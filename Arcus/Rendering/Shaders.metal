@@ -54,8 +54,10 @@ fragment float4 mesh_fragment(VOut in [[stage_in]],
     if (u.debugMode == 2) { return fg ? float4(c.a, c.a, c.a, 1.0) : float4(0.0, 0.0, 0.0, 1.0); }
     if (u.debugMode == 3) { return fg ? float4(0.0)               : float4(c.rgb, 1.0); }
 
-    // 前景：干净锐利 matte（半透明过渡带收到 ~1px，几何抗锯齿交给 4×MSAA）。
-    // 「放大」由顶点着色器完成，这里只做硬阈值，不再有外扩带 ⇒ 边缘零光晕。
-    float a = fg ? smoothstep(0.44, 0.56, c.a) : 1.0;
+    // 前景剪影抗锯齿：4×MSAA 只抗「几何切口」边，抗不了「matte alpha 阈值」这条真正的剪影
+    // （前景四边形内 4 个子样本 alpha 几乎一致 ⇒ MSAA 对剪影零作用）。
+    // 改用屏幕空间导数 fwidth(c.a) 自适应阈宽：无论 fgScale 放大与否，剪影恒得 ~1px 软 coverage ⇒ 消锯齿。
+    float aa = max(fwidth(c.a) * 0.7, 0.0015);
+    float a  = fg ? smoothstep(0.5 - aa, 0.5 + aa, c.a) : 1.0;
     return float4(c.rgb * a, a);                 // 预乘，配合 over 混合 (one / 1-srcAlpha)
 }

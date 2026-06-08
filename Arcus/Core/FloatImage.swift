@@ -292,6 +292,101 @@ struct FloatImage {
         return q
     }
 
+    /// 滑窗 box 均值（O(n)，与半径无关；clamp 边界）。供彩色 guided filter 高效求各阶矩。
+    private static func boxMean(_ src: [Float], _ w: Int, _ h: Int, _ r: Int) -> [Float] {
+        if r <= 0 { return src }
+        let win = Float(2 * r + 1)
+        var tmp = [Float](repeating: 0, count: w * h)
+        src.withUnsafeBufferPointer { s in
+            tmp.withUnsafeMutableBufferPointer { d in
+                for y in 0..<h {
+                    let row = y * w
+                    var sum: Float = 0
+                    for k in -r...r { sum += s[row + min(max(k, 0), w - 1)] }
+                    d[row] = sum / win
+                    for x in 1..<w {
+                        sum += s[row + min(x + r, w - 1)] - s[row + max(x - r - 1, 0)]
+                        d[row + x] = sum / win
+                    }
+                }
+            }
+        }
+        var out = [Float](repeating: 0, count: w * h)
+        tmp.withUnsafeBufferPointer { s in
+            out.withUnsafeMutableBufferPointer { d in
+                for x in 0..<w {
+                    var sum: Float = 0
+                    for k in -r...r { sum += s[min(max(k, 0), h - 1) * w + x] }
+                    d[x] = sum / win
+                    for y in 1..<h {
+                        sum += s[min(y + r, h - 1) * w + x] - s[max(y - r - 1, 0) * w + x]
+                        d[y * w + x] = sum / win
+                    }
+                }
+            }
+        }
+        return out
+    }
+
+    /// 彩色（RGB 三通道）引导的 guided filter（He et al. matting 版）。
+    /// 比单亮度强：在「亮度相近但颜色不同」的低对比边界（如浅灰杯/浅灰墙带一点色差）也能把 mask
+    /// 吸附到真实边缘；在完全无边的平坦区 a→0 ⇒ 退化为局部均值，自动把低分辨率台阶磨成平滑斜坡。
+    /// guide 须 3/4 通道彩色图，self 为 1ch mask。半径用滑窗均值 ⇒ 取大也不变慢。
+    func guidedRefinedColor(guide color: FloatImage, radius: Int, eps: Float) -> FloatImage {
+        precondition(channels == 1 && color.channels >= 3 && color.width == width && color.height == height)
+        let w = width, h = height, n = w * h, cc = color.channels, r = max(1, radius)
+        var Ir = [Float](repeating: 0, count: n), Ig = Ir, Ib = Ir
+        let P = pixels
+        for i in 0..<n { Ir[i] = color.pixels[i * cc]; Ig[i] = color.pixels[i * cc + 1]; Ib[i] = color.pixels[i * cc + 2] }
+        func mean(_ a: [Float]) -> [Float] { Self.boxMean(a, w, h, r) }
+        let mIr = mean(Ir), mIg = mean(Ig), mIb = mean(Ib), mP = mean(P)
+        var Irr = [Float](repeating: 0, count: n), Irg = Irr, Irb = Irr, Igg = Irr, Igb = Irr, Ibb = Irr
+        var IrP = Irr, IgP = Irr, IbP = Irr
+        for i in 0..<n {
+            let rr = Ir[i], gg = Ig[i], bb = Ib[i], p = P[i]
+            Irr[i] = rr * rr; Irg[i] = rr * gg; Irb[i] = rr * bb
+            Igg[i] = gg * gg; Igb[i] = gg * bb; Ibb[i] = bb * bb
+            IrP[i] = rr * p; IgP[i] = gg * p; IbP[i] = bb * p
+        }
+        let mIrr = mean(Irr), mIrg = mean(Irg), mIrb = mean(Irb)
+        let mIgg = mean(Igg), mIgb = mean(Igb), mIbb = mean(Ibb)
+        let mIrP = mean(IrP), mIgP = mean(IgP), mIbP = mean(IbP)
+        var ar = [Float](repeating: 0, count: n), ag = ar, ab = ar, bcoef = ar
+        for i in 0..<n {
+            let cr = mIrP[i] - mIr[i] * mP[i]
+            let cg = mIgP[i] - mIg[i] * mP[i]
+            let cb = mIbP[i] - mIb[i] * mP[i]
+            // 方差矩阵（对称）+ eps·I
+            let vrr = mIrr[i] - mIr[i] * mIr[i] + eps
+            let vrg = mIrg[i] - mIr[i] * mIg[i]
+            let vrb = mIrb[i] - mIr[i] * mIb[i]
+            let vgg = mIgg[i] - mIg[i] * mIg[i] + eps
+            let vgb = mIgb[i] - mIg[i] * mIb[i]
+            let vbb = mIbb[i] - mIb[i] * mIb[i] + eps
+            // 解 3×3 对称线性系统 (V) a = c（伴随矩阵 / 行列式）
+            let inv00 = vgg * vbb - vgb * vgb
+            let inv01 = vgb * vrb - vrg * vbb
+            let inv02 = vrg * vgb - vrb * vgg
+            let inv11 = vrr * vbb - vrb * vrb
+            let inv12 = vrg * vrb - vrr * vgb
+            let inv22 = vrr * vgg - vrg * vrg
+            let det = vrr * inv00 + vrg * inv01 + vrb * inv02
+            if abs(det) > 1e-12 {
+                let idet = 1 / det
+                ar[i] = (inv00 * cr + inv01 * cg + inv02 * cb) * idet
+                ag[i] = (inv01 * cr + inv11 * cg + inv12 * cb) * idet
+                ab[i] = (inv02 * cr + inv12 * cg + inv22 * cb) * idet
+            }
+            bcoef[i] = mP[i] - ar[i] * mIr[i] - ag[i] * mIg[i] - ab[i] * mIb[i]
+        }
+        let mar = mean(ar), mag = mean(ag), mab = mean(ab), mb = mean(bcoef)
+        var q = FloatImage(width: w, height: h, channels: 1)
+        for i in 0..<n {
+            q.pixels[i] = min(1, max(0, mar[i] * Ir[i] + mag[i] * Ig[i] + mab[i] * Ib[i] + mb[i]))
+        }
+        return q
+    }
+
     /// 取 RGBA/RGB 的亮度作为单通道引导图。
     func luminance() -> FloatImage {
         var out = FloatImage(width: width, height: height, channels: 1)

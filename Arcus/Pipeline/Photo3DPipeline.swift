@@ -80,13 +80,19 @@ final class Photo3DPipeline {
             segSource = SubjectSegmenter.Source.none.rawValue
         }
 
-        // 边缘 matting 精修：用 RGB 亮度做 guided filter，把 mask 贴合到图像边缘（发丝/边界），
-        // 减少边缘漏光与补全掩膜脏。
-        let guide = color.luminance()
-        mask = mask.guidedRefined(guide: guide, radius: max(2, W / 200), eps: 1e-4)
-        // 收紧 matte 边缘到近乎硬边（几何抗锯齿交给 4×MSAA）：半透明过渡带越宽，
-        // 主体背后的补全色越会从这条带"透出来"形成光晕。收紧到 ~1px → 补全被前景完全盖住。
-        for p in 0..<(W * H) { mask.pixels[p] = smoothStep(0.46, 0.54, mask.pixels[p]) }
+        // 剪影抗锯齿（关键）：Vision 实例 mask 是低分辨率上采样来的，边界是一条很粗的「像素台阶」
+        // （在调试「主体」图层放大可见，约 ~10px 阶梯）。片元 fwidth AA 只能软化过渡「厚度」，
+        // 扶不直台阶「走向」；小半径模糊也跨不过这么粗的台阶 → 必须把边界重新「吸附」到真实边缘。
+        //
+        // 用 joint-bilateral 式 guided upsampling：半径取得比台阶块更大(~W/130)，才能跨过整段台阶、
+        // 把边界吸到全分辨率真实边缘；eps 极小=强吸边。**用 RGB 三通道彩色引导**而非单亮度：
+        // 浅灰杯/浅灰墙这类「亮度相近但有微弱色差」的低对比边界，亮度引导吸不住、只剩台阶，
+        // 彩色引导能利用色差吸边；真的无色差的平坦处则自动退化为局部均值，把台阶磨成平滑斜坡。
+        mask = mask.guidedRefinedColor(guide: color, radius: max(3, W / 130), eps: 1e-4)
+        // 残余台阶用一遍小低通抹平成平滑斜坡，再 smoothStep 收回 ~2px 细带：
+        // 中点仍是 0.5 ⇒ 剪影位置不变、补全色不从半透带透出成光晕，但 0.5 等值线已是平滑曲线 ⇒ 配 fwidth AA 得干净边。
+        mask = mask.boxBlurred(radius: max(2, W / 360), passes: 2)
+        for p in 0..<(W * H) { mask.pixels[p] = smoothStep(0.42, 0.58, mask.pixels[p]) }
 
         // 边缘保持式深度去噪（中值）——保留深度断层，替代会糊掉悬崖的方框模糊。
         disparity = disparity.median3()
