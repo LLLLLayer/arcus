@@ -13,7 +13,7 @@ final class AppModel: ObservableObject {
     @Published var progressMessage = ""
     @Published var scene: Photo3DScene?
     @Published var params = ViewerParams()
-    @Published var highQualityFill = false   // 启动页开关：PatchMatch 高质量补全(较慢)
+    @Published var fillMode: FillMode = .fast   // 启动页选择：快速 / PatchMatch / MI-GAN
     @Published var sourceInfo = ""
     @Published var errorMessage: String?
 
@@ -46,11 +46,11 @@ final class AppModel: ObservableObject {
         progressMessage = "准备…"
         errorMessage = nil
         let pipeline = self.pipeline
-        let hq = self.highQualityFill
+        let fm = self.fillMode
         Task.detached(priority: .userInitiated) {
             do {
                 let scene = try pipeline.process(image: image, avDepth: avDepth,
-                                                 options: Photo3DPipeline.Options(highQualityFill: hq)) { p, m in
+                                                 options: Photo3DPipeline.Options(fillMode: fm)) { p, m in
                     Task { @MainActor in
                         self.progress = p
                         self.progressMessage = m

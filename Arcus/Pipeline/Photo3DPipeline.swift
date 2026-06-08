@@ -4,14 +4,36 @@ import AVFoundation
 
 /// 端侧编排：UIImage → 深度 → 定向 → 主体分割 → 去遮挡补全 → 烘焙 Photo3DScene。
 /// 全程一次性、可在后台线程跑；通过 progress 回调反馈阶段与进度。
+/// 背景去遮挡补全方式（启动页选择）。
+enum FillMode: String, CaseIterable, Identifiable, Sendable {
+    case fast        // 竖直延续 + 深度门控（快，<1s，默认）
+    case patchMatch  // PatchMatch 内容感知 + 深度门控（慢，~10s）
+    case migan       // MI-GAN 神经补全（AI 生成，端侧）
+
+    var id: String { rawValue }
+    var title: String {
+        switch self { case .fast: return "快速"; case .patchMatch: return "PatchMatch"; case .migan: return "AI 补全" }
+    }
+    var detail: String {
+        switch self {
+        case .fast: return "竖直延续 · 深度门控 · 实时"
+        case .patchMatch: return "内容感知 · 更连贯 · 较慢（约十几秒）"
+        case .migan: return "MI-GAN 神经生成 · 端侧 · 处理较慢"
+        }
+    }
+    var source: String {
+        switch self { case .fast: return "vertical+depth"; case .patchMatch: return "PatchMatch+depth"; case .migan: return "MI-GAN" }
+    }
+}
+
 final class Photo3DPipeline {
 
     struct Options {
         var maxWorkingSide: Int = 1024
         /// 去遮挡环带半径占长边比例（决定背景被补全的范围，≈最大像素视差）。
         var ringRadiusFraction: Float = 0.045
-        /// 高质量背景补全：用 PatchMatch 内容感知填充（更连贯但慢，约 1–3 分钟）。默认关。
-        var highQualityFill: Bool = false
+        /// 背景补全方式：快速 / PatchMatch / MI-GAN。默认快速。
+        var fillMode: FillMode = .fast
     }
 
     enum PipelineError: Error { case badImage, textureAllocation }
@@ -19,6 +41,7 @@ final class Photo3DPipeline {
     private let depthEstimator = DepthEstimator()
     private let segmenter = SubjectSegmenter()
     private let lamaInpainter = LamaInpainter()
+    private let miganInpainter = MiganInpainter()
 
     var isDepthModelAvailable: Bool { depthEstimator.isModelAvailable }
     var isLamaAvailable: Bool { lamaInpainter.isAvailable }
@@ -83,27 +106,49 @@ final class Photo3DPipeline {
         var validFull = FloatImage(width: W, height: H, channels: 1)
         for p in 0..<(W * H) { validFull.pixels[p] = subj.pixels[p] > 0.5 ? 0 : 1 }
 
-        // 背景颜色：默认竖直延续填充(快、锐利)；开启「高质量」时用 PatchMatch 内容感知填充(慢、更连贯)。
-        // 两者都传入 disparity 做「深度门控」：只从身后的背景侧像素取色，绝不把近处物/主体色拉进去遮挡带。
+        // 背景颜色：快速=竖直延续(实时)；PatchMatch=内容感知(慢)；MI-GAN=神经生成(端侧)。
+        // 前两者传入 disparity 做「深度门控」：只从身后背景侧取色。MI-GAN 直接生成整块洞(主体区)，
+        // 失败/模型缺失则回退 PatchMatch。三者都只在 hole(主体区) 内补，剪影外保持真背景。
+        let rgbColor = rgb3(color)
         let bgColorImg: FloatImage
         let inpaintSource: String
-        if options.highQualityFill {
+        switch options.fillMode {
+        case .migan:
+            progress(0.62, "AI 补全背景（MI-GAN，端侧生成）…")
+            // 把洞(主体)小幅外扩再喂给 MI-GAN，确保人被完全盖住——否则模型看到边缘的人像残片(发丝/衣角)
+            // 会把人「续」进可见带里。外扩环带在静止时被前景遮住、动起来正是要生成的带，故只赚不亏。
+            let migHole = subj.dilated(radius: max(6, W / 100))
+            if let mig = miganInpainter.inpaint(rgb: rgbColor, hole: migHole) {
+                bgColorImg = mig
+                inpaintSource = "MI-GAN"
+            } else {
+                bgColorImg = DisocclusionInpainter.patchMatchFill(rgbColor, valid: validFull, disparity: disparity)
+                inpaintSource = "PatchMatch+depth(MI-GAN 不可用)"
+            }
+        case .patchMatch:
             progress(0.62, "高质量补全背景（PatchMatch · 深度感知，较慢）…")
-            bgColorImg = DisocclusionInpainter.patchMatchFill(rgb3(color), valid: validFull, disparity: disparity)
+            bgColorImg = DisocclusionInpainter.patchMatchFill(rgbColor, valid: validFull, disparity: disparity)
             inpaintSource = "PatchMatch+depth"
-        } else {
-            bgColorImg = DisocclusionInpainter.verticalFill(rgb3(color), valid: validFull, disparity: disparity)
+        case .fast:
+            bgColorImg = DisocclusionInpainter.verticalFill(rgbColor, valid: validFull, disparity: disparity)
             inpaintSource = "vertical+depth"
         }
 
-        // 背景深度：降采样上 push-pull（深度平滑无妨），主体区按背景视差填充。
+        // 背景深度：洞(主体区)按背景视差填充。普通模式用 push-pull 平滑扩散(保留周围结构)；
+        // MI-GAN 模式把洞「拍平到局部背景平面」——生成内容无真实深度，平面比平滑扩散更稳，
+        // 生成的背景不会随深度起伏被 warp 出鼓包/扭动。
         let inpaintSide = 640
         let s = Float(inpaintSide) / longSide
         let iw = max(2, Int((Float(W) * s).rounded()))
         let ih = max(2, Int((Float(H) * s).rounded()))
         let dispSmall = disparity.resized(to: iw, to: ih)
         let validSmall = validFull.resized(to: iw, to: ih)
-        let bgDepthImg = DisocclusionInpainter.pushPullFill(dispSmall, valid: validSmall).resized(to: W, to: H)
+        let bgDepthImg: FloatImage
+        if options.fillMode == .migan {
+            bgDepthImg = DisocclusionInpainter.planarFill(disparity, valid: validFull)
+        } else {
+            bgDepthImg = DisocclusionInpainter.pushPullFill(dispSmall, valid: validSmall).resized(to: W, to: H)
+        }
 
         progress(0.85, "烘焙 3D 网格…")
 
