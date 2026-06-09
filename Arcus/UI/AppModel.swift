@@ -58,8 +58,8 @@ final class AppModel: ObservableObject {
                 }
                 await MainActor.run {
                     self.scene = scene
-                    // 默认更克制的视差幅度：露出的去遮挡带更窄，背景“糊”的部分更少（苹果的运动也很微妙）
-                    self.params.parallaxAmp = 0.015 + scene.suggestedParallax * 0.018
+                    // 视差幅度：配合自适应支点(主体锚定、深层背景扫动)，略放大让背景运镜更明显。
+                    self.params.parallaxAmp = 0.022 + scene.suggestedParallax * 0.026
                     self.sourceInfo = "深度：\(scene.depthSource) · 主体：\(scene.segmentSource) · 补全：\(scene.inpaintSource)"
                     self.stage = .editor
                     // 测试钩子：AUTOEXPORT=video|spatial 时自动触发导出，便于冒烟测试导出链路。

@@ -18,6 +18,7 @@ final class Photo3DScene: @unchecked Sendable {
         let farColor: MTLTexture     // rgba8: 远景背景(主体+近景背景均已去除并填充)
         let farDepth: MTLTexture     // r16f : 远景背景视差
         let midCenter: SIMD2<Float>  // 近景背景质心(uv)，中间层「放大」的支点（盖住其身后远景的去遮挡带）
+        let midScaleFactor: Float    // 近景背景放大系数（按深度比例：越远越小）⇒ um.fgScale = 1+(fgScale-1)*midScaleFactor
     }
     let multiLayer: MultiLayer?
 
@@ -25,6 +26,7 @@ final class Photo3DScene: @unchecked Sendable {
     let height: Int
     var aspect: Float { Float(width) / Float(height) }
     let fgCenter: SIMD2<Float>   // 主体质心(uv 0..1)，前景「整体放大」的支点
+    let depthPivot: Float        // 视差支点(此深度不动)：自适应偏向主体深度 ⇒ 主体近乎锚定、背景progressively 扫动(深层运镜)
 
     // 纹理
     let fgColor: MTLTexture   // rgba8: rgb=原图, a=柔和主体 matte（边缘羽化）
@@ -61,9 +63,11 @@ final class Photo3DScene: @unchecked Sendable {
          depthPreview: CGImage?, maskPreview: CGImage?, backgroundPreview: CGImage?,
          depthSource: String, segmentSource: String, inpaintSource: String,
          fgCenter: SIMD2<Float> = SIMD2<Float>(0.5, 0.5),
+         depthPivot: Float = 0.5,
          multiLayer: MultiLayer? = nil) {
         self.multiLayer = multiLayer
         self.fgCenter = fgCenter
+        self.depthPivot = depthPivot
         self.width = width
         self.height = height
         self.fgColor = fgColor

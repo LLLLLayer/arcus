@@ -140,9 +140,12 @@ final class Photo3DPipeline {
             inpaintSource = "vertical+depth"
         }
 
-        // 背景深度：洞(主体区)按背景视差填充。普通模式用 push-pull 平滑扩散(保留周围结构)；
-        // MI-GAN 模式把洞「拍平到局部背景平面」——生成内容无真实深度，平面比平滑扩散更稳，
-        // 生成的背景不会随深度起伏被 warp 出鼓包/扭动。
+        // 背景深度：洞(主体区)需要一张「合适的深度」。
+        // MI-GAN 模式：旧做法 planarFill 把洞拍平成单一平面 ⇒ 站立人物脚下「本应继续延伸的地面/小路」
+        //   被摆到平面深度上，视差一动就和真实地面错开、像贴片浮起（用户反馈：底部补的东西和原图层不在一起）。
+        //   改为**对补全后的彩色图重新估计一遍深度**：MI-GAN 生成的内容由此获得「与画面连续、且与所画内容一致」
+        //   的真实深度——脚下小路会被估成向远处递退的渐变，正好接上真实地面，不再错层。
+        // 普通模式：push-pull 平滑扩散（从边界向洞内传播真实深度，连续）。
         let inpaintSide = 640
         let s = Float(inpaintSide) / longSide
         let iw = max(2, Int((Float(W) * s).rounded()))
@@ -150,8 +153,12 @@ final class Photo3DPipeline {
         let dispSmall = disparity.resized(to: iw, to: ih)
         let validSmall = validFull.resized(to: iw, to: ih)
         let bgDepthImg: FloatImage
-        if options.fillMode == .migan {
-            bgDepthImg = DisocclusionInpainter.planarFill(disparity, valid: validFull)
+        if options.fillMode == .migan, let filledCG = bgColorImg.toCGImage() {
+            var reEst = depthEstimator.estimate(cgImage: filledCG, width: W, height: H, avDepth: nil).disparity
+            reEst = reEst.median3()
+            bgDepthImg = depthAlignedHoleFill(original: disparity, reEstimated: reEst, hole: subj)
+        } else if options.fillMode == .migan {
+            bgDepthImg = DisocclusionInpainter.planarFill(disparity, valid: validFull)   // 兜底：转 CGImage 失败
         } else {
             bgDepthImg = DisocclusionInpainter.pushPullFill(dispSmall, valid: validSmall).resized(to: W, to: H)
         }
@@ -199,15 +206,22 @@ final class Photo3DPipeline {
         }
 
         // 主体质心(uv)：前景「整体放大」的支点（绕质心放大 ⇒ 上下左右对称外扩，盖住各方向的去遮挡带）。
-        var cxSum: Double = 0, cySum: Double = 0, cN: Double = 0
+        // 同时累计主体平均视差 dSubj，用于：① 自适应视差支点(主体锚定、背景扫动)；② 各层按深度比例放大。
+        var cxSum: Double = 0, cySum: Double = 0, cN: Double = 0, dSubjSum: Double = 0
         for y in 0..<H {
             for x in 0..<W where subj.pixels[y * W + x] > 0.5 {
                 cxSum += Double(x); cySum += Double(y); cN += 1
+                dSubjSum += Double(disparity.pixels[y * W + x])
             }
         }
         let fgCenter = cN > 0
             ? SIMD2<Float>(Float(cxSum / cN) / Float(W), Float(cySum / cN) / Float(H))
             : SIMD2<Float>(0.5, 0.5)
+        let dSubj = cN > 0 ? Float(dSubjSum / cN) : 0.75   // 主体平均视差(1=近)
+
+        // 自适应视差支点：从 0.5 偏向主体深度的一半 ⇒ 主体近乎锚定、越往深处的背景扫动越大(深层运镜)。
+        // 半混合(0.5)兼顾：主体仍保留少量平移、背景去遮挡不过度扩大。
+        let depthPivot = min(0.85, max(0.4, 0.5 + 0.5 * (dSubj - 0.5)))
 
         // 把「补全区掩膜」烤进背景层 alpha：subj=1 处即主体footprint=处理时被填充的像素。
         // 正常渲染从不读 bg.alpha（背景 alpha 恒置 1），故无副作用；仅供「重拍·补全主体背后」识别哪些是烤进去的填充。
@@ -248,15 +262,21 @@ final class Photo3DPipeline {
         var midBin = FloatImage(width: W, height: H, channels: 1)
         for p in 0..<(W * H) { midBin.pixels[p] = midMatte.pixels[p] > 0.5 ? 1 : 0 }
         // 近景背景质心(uv)：中间层「放大」的支点（同前景：绕质心放大近景背景，盖住其身后远景的去遮挡带）。
-        var mcx: Double = 0, mcy: Double = 0, mcN: Double = 0
+        // 同时累计近景背景平均视差 dMid，用于按深度比例决定放大系数。
+        var mcx: Double = 0, mcy: Double = 0, mcN: Double = 0, dMidSum: Double = 0
         for y in 0..<H {
             for x in 0..<W where midBin.pixels[y * W + x] > 0.5 {
                 mcx += Double(x); mcy += Double(y); mcN += 1
+                dMidSum += Double(disparity.pixels[y * W + x])
             }
         }
         let midCenter = mcN > 0
             ? SIMD2<Float>(Float(mcx / mcN) / Float(W), Float(mcy / mcN) / Float(H))
             : SIMD2<Float>(0.5, 0.5)
+        let dMid = mcN > 0 ? Float(dMidSum / mcN) : 0.4
+        // 中间层放大系数 = 按深度比例(越远越小)。用 (dMid/dSubj)² 让远层掉得更快(用户：离得远的倍率别太高)。
+        let midRatio = dSubj > 1e-3 ? min(1, max(0, dMid / dSubj)) : 0.4
+        let midScaleFactor = midRatio * midRatio
         // 近景背景深度：带掩膜平滑(去噪) + 外扩（同前景技巧，避免网格撕裂）。
         var mdmul = FloatImage(width: W, height: H, channels: 1)
         for p in 0..<(W * H) { mdmul.pixels[p] = disparity.pixels[p] * midBin.pixels[p] }
@@ -276,12 +296,17 @@ final class Photo3DPipeline {
             midRGBA.pixels[p * 4 + 0] = color.pixels[p * 4 + 0]; midRGBA.pixels[p * 4 + 1] = color.pixels[p * 4 + 1]
             midRGBA.pixels[p * 4 + 2] = color.pixels[p * 4 + 2]; midRGBA.pixels[p * 4 + 3] = midMatte.pixels[p]
         }
-        // 远景背景 = 去除(主体 ∪ 近景背景)后填充：颜色竖直填充，深度远侧 push-pull。
+        // 远景背景 = 去除(主体 ∪ 近景背景)后填充：颜色 + 深度都补，近景背景层移开后露出的是「身后的远景」。
         var farValid = FloatImage(width: W, height: H, channels: 1)
         for p in 0..<(W * H) { farValid.pixels[p] = (subj.pixels[p] > 0.5 || midBin.pixels[p] > 0.5) ? 0 : 1 }
-        // 远景层颜色直接复用主背景填充(含树的全背景)，近景树移开后露出的是树而非灰路；
-        // 远景的「深度」仍按远侧填充(farValid)保持分层。也少跑一次填充更快。
-        let farColorImg = bgColorImg
+        // 远景层颜色：在 bgColorImg(已补主体)基础上，把「近景背景」区域也补掉——否则该区仍是近景原像素，
+        // 近景层 parallax 移开后露出的会是它自己的重影(树移开还是树)。
+        // 关键：这里**必须用平滑扩散填充(push-pull)，不能用竖直/PatchMatch**——后者是高频条纹/接缝，
+        // 近景层缩放放大+视差一移开就会在主体旁露出「明显的线条」。push-pull 给柔和模糊(远景本就虚)，
+        // 即便被露出也只是糊一点，绝不出现条纹。主体区保留 bgColorImg(按填充模式的清晰补全)不动。
+        var farColorValid = FloatImage(width: W, height: H, channels: 1)
+        for p in 0..<(W * H) { farColorValid.pixels[p] = midBin.pixels[p] > 0.5 ? 0 : 1 }
+        let farColorImg = DisocclusionInpainter.pushPullFill(bgColorImg, valid: farColorValid)
         let farValidSmall = farValid.resized(to: iw, to: ih)
         let farDepthImg = DisocclusionInpainter.pushPullFill(dispSmall, valid: farValidSmall).resized(to: W, to: H)
         var multiLayer: Photo3DScene.MultiLayer?
@@ -294,7 +319,7 @@ final class Photo3DPipeline {
                 midColor: midColorTex, midDepth: midDepthTex,
                 midIndexBuffer: midMesh.fgIndexBuffer, midIndexCount: midMesh.fgIndexCount,
                 farColor: farColorTex, farDepth: farDepthTex,
-                midCenter: midCenter)
+                midCenter: midCenter, midScaleFactor: midScaleFactor)
         }
 
         // 视差幅度建议：按深度分布的展开度。
@@ -316,6 +341,7 @@ final class Photo3DPipeline {
             depthSource: depthResult.source.rawValue,
             segmentSource: segSource, inpaintSource: inpaintSource,
             fgCenter: fgCenter,
+            depthPivot: depthPivot,
             multiLayer: multiLayer)
     }
 
@@ -357,6 +383,35 @@ final class Photo3DPipeline {
         var out = FloatImage(width: disp.width, height: disp.height, channels: 1)
         for p in 0..<n {
             out.pixels[p] = smoothStep(thr - soft, thr + soft, disp.pixels[p])
+        }
+        return out
+    }
+
+    /// 把「对补全图重新估计的深度」对齐到原视差，并只在洞(主体区)内替换，边界羽化无缝。
+    /// - 有效区(洞外)做最小二乘拟合 a·reEst + b ≈ original：统一尺度、并自动处理朝向翻转(a 可负)；
+    /// - 洞内用对齐后的重估深度，洞外保留原深度，主体边界用羽化权重平滑过渡。
+    private func depthAlignedHoleFill(original: FloatImage, reEstimated: FloatImage, hole: FloatImage) -> FloatImage {
+        let n = original.pixels.count
+        var sx = 0.0, sy = 0.0, sxx = 0.0, sxy = 0.0, cnt = 0.0
+        for p in 0..<n where hole.pixels[p] < 0.5 {
+            let x = Double(reEstimated.pixels[p]), y = Double(original.pixels[p])
+            sx += x; sy += y; sxx += x * x; sxy += x * y; cnt += 1
+        }
+        var a: Float = 1, b: Float = 0
+        if cnt > 1 {
+            let denom = cnt * sxx - sx * sx
+            if abs(denom) > 1e-9 {
+                a = Float((cnt * sxy - sx * sy) / denom)
+                b = Float((sy - Double(a) * sx) / cnt)
+            }
+        }
+        // 羽化洞掩膜：边界几像素平滑过渡（对齐后 aligned≈original，过渡处无缝）。
+        let holeW = hole.boxBlurred(radius: max(2, original.width / 200), passes: 2)
+        var out = original
+        for p in 0..<n {
+            let aligned = max(0, min(1, a * reEstimated.pixels[p] + b))
+            let w = holeW.pixels[p]
+            out.pixels[p] = (1 - w) * original.pixels[p] + w * aligned
         }
         return out
     }
