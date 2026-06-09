@@ -36,5 +36,8 @@ Arcus/Resources/*.mlmodel
 *.log
 .env
 
+# Docs (internal notes/research; kept local, not committed going forward)
+docs/
+
 # Claude Code local settings
 .claude/
