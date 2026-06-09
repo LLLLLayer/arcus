@@ -68,7 +68,7 @@ struct ParallaxMetalView: UIViewRepresentable {
             guard let r = renderer, r.params.reframeMode else { return }   // 普通查看：直接忽略
             switch g.state {
             case .began: pinchStart = r.zoomLevel
-            case .changed: r.zoomLevel = min(3.0, max(1.0, pinchStart * Float(g.scale)))
+            case .changed: r.zoomLevel = min(3.0, max(0.7, pinchStart * Float(g.scale)))   // <1=向外拉远，露出更宽画框待补全(Extend)
             default: break
             }
         }
@@ -107,8 +107,9 @@ final class ReframeController: ObservableObject {
 
     /// 返回 (rgb 3ch, hole 1ch[1=待重新生成])；无渲染器/尺寸为 0 时返回 nil。
     func snapshot() -> (rgb: FloatImage, hole: FloatImage)? {
-        guard let r = renderer, let scene = r.scene, let v = view else { return nil }
-        let dw = Int(v.drawableSize.width), dh = Int(v.drawableSize.height)
+        guard let r = renderer, let scene = r.scene else { return nil }
+        // 输出按**原图比例**(scene.width:height)，而非手机屏幕的竖长比例 ⇒ 重拍补全成片是一张正常比例照片。
+        let dw = scene.width, dh = scene.height
         guard dw > 0, dh > 0 else { return nil }
         let off = simd_clamp(r.panOffset, SIMD2<Float>(-1, -1), SIMD2<Float>(1, 1))
 

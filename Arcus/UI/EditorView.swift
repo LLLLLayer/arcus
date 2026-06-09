@@ -24,8 +24,8 @@ struct EditorView: View {
             if reframe {
                 if reframeStage == .preview { reframeEdges }              // 虚化只在「预览」态：露出的边缘先磨砂占位
                 if reframeStage == .result, let img = reframeResult {
-                    Image(uiImage: img).resizable().scaledToFill()
-                        .ignoresSafeArea().transition(.opacity)
+                    Image(uiImage: img).resizable().scaledToFit()   // 按原图比例完整展示补全成片(letterbox)，所见即所存
+                        .transition(.opacity)
                 }
                 reframeChrome
                 if reframeStage == .generating { generatingOverlay }
@@ -55,10 +55,11 @@ struct EditorView: View {
         p.motionEnabled = false
         p.autoAnimate = false
         p.debugMode = 0
-        p.parallaxAmp = 0.34                     // 普通查看是 0.02–0.13；这里放大成「换机位」幅度
+        p.parallaxAmp = 0.45                     // 普通查看是 0.02–0.13；这里放大成「换机位」幅度（移动范围更大）
         p.bgParallaxFactor = 0.5                 // 背景跟随更多 ⇒ 背景活动范围更大（之前 0.2 偏小）
         p.fgScale = max(p.fgScale, 1.1)
         p.multiLayerBg = false                   // 重拍只用单背景层 ⇒ 「补全主体背后」的洞掩膜干净（仅 bg+fg）
+        p.fitImage = true                        // 与普通查看一致的取景(原图比例+overscan) ⇒ 进入重拍不跳帧；移动/缩放才露边
         return p
     }
 
