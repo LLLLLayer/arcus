@@ -25,6 +25,7 @@ struct ViewerParams {
     var autoAnimate: Bool = false
     var multiLayerBg: Bool = false       // 背景再分层（近景背景中间层 + 远景背景打底）
     var fgScale: Float = 1.05            // 前景整体放大(1=原尺寸)：放大主体盖住身后的去遮挡过渡带
+    var reframeMode: Bool = false        // 「重拍」入口：拖动=移机位(大范围、不回弹)，双指=缩放；默认 false ⇒ 普通查看完全不受影响
 }
 
 /// Metal 连续深度网格 warp 渲染器（2 层软 LDI，无深度缓冲——靠绘制顺序 + 剪影切口处理遮挡）：
@@ -46,6 +47,7 @@ final class ParallaxRenderer: NSObject, MTKViewDelegate {
 
     var panOffset = SIMD2<Float>(0, 0)
     var isPanning = false
+    var zoomLevel: Float = 1            // 「重拍」双指缩放，乘到 viewScale；普通查看恒为 1（updateUIView 强制复位）
 
     private var frame: Int = 0
 
@@ -87,7 +89,7 @@ final class ParallaxRenderer: NSObject, MTKViewDelegate {
     // MARK: - 偏移合成
 
     private func currentOffset() -> SIMD2<Float> {
-        if !isPanning { panOffset *= 0.88 }
+        if !isPanning && !params.reframeMode { panOffset *= 0.88 }   // 重拍：保持所选机位不回弹
         var off = panOffset
         if params.motionEnabled { off += motion.sample() }
         if params.autoAnimate {
@@ -105,7 +107,7 @@ final class ParallaxRenderer: NSObject, MTKViewDelegate {
         var sx: Float = 1, sy: Float = 1
         if r >= 1 { sx = r; sy = 1 } else { sx = 1; sy = 1 / r }
         let overscan: Float = 1.06
-        return SIMD2<Float>(sx * overscan, sy * overscan)
+        return SIMD2<Float>(sx * overscan * zoomLevel, sy * overscan * zoomLevel)
     }
 
     private func makeUniforms(offset: SIMD2<Float>) -> MeshUniforms {
@@ -211,7 +213,8 @@ final class ParallaxRenderer: NSObject, MTKViewDelegate {
     // MARK: - 离屏渲染（导出用）
 
     func renderOffscreen(scene: Photo3DScene, offset: SIMD2<Float>,
-                         width: Int, height: Int) -> MTLTexture? {
+                         width: Int, height: Int,
+                         clearColor: MTLClearColor = MTLClearColorMake(0, 0, 0, 1)) -> MTLTexture? {
         guard let target = ctx.makeRenderTarget(width: width, height: height) else { return nil }
         // 4× MSAA：多重采样色附件 → resolve 到单采样 target。
         let md = MTLTextureDescriptor.texture2DDescriptor(pixelFormat: .bgra8Unorm,
@@ -226,7 +229,7 @@ final class ParallaxRenderer: NSObject, MTKViewDelegate {
         rpd.colorAttachments[0].resolveTexture = target
         rpd.colorAttachments[0].loadAction = .clear
         rpd.colorAttachments[0].storeAction = .multisampleResolve
-        rpd.colorAttachments[0].clearColor = MTLClearColorMake(0, 0, 0, 1)
+        rpd.colorAttachments[0].clearColor = clearColor
         guard let cb = ctx.queue.makeCommandBuffer() else { return nil }
 
         let savedViewport = viewportSize
