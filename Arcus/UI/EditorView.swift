@@ -58,6 +58,7 @@ struct EditorView: View {
         p.parallaxAmp = 0.34                     // 普通查看是 0.02–0.13；这里放大成「换机位」幅度
         p.bgParallaxFactor = 0.5                 // 背景跟随更多 ⇒ 背景活动范围更大（之前 0.2 偏小）
         p.fgScale = max(p.fgScale, 1.1)
+        p.multiLayerBg = false                   // 重拍只用单背景层 ⇒ 「补全主体背后」的洞掩膜干净（仅 bg+fg）
         return p
     }
 

@@ -98,28 +98,38 @@ struct ParallaxMetalView: UIViewRepresentable {
     }
 }
 
-/// 「重拍」桥接器：把当前渲染器交给 SwiftUI，按需将「当前机位」渲染为全分辨率静帧，
-/// 并以哨兵品红清屏 → 渲染后仍是品红的像素 = 被移出画框、需要补全的「洞」。
+/// 「重拍」桥接器：把当前渲染器交给 SwiftUI，按需把「当前机位」渲染为全分辨率静帧 + 补全洞掩膜。
+/// 洞 = 需要重新生成的像素，两类：① 画框外被移出去的边；② 主体让开后露出的「烤进去的填充」(背后)。
+/// 用一遍 maskMode(debugMode 4) 渲染同时拿到两者：白色清屏=画框外；背景输出 fillMask；前景按覆盖抹 0。
 final class ReframeController: ObservableObject {
     weak var renderer: ParallaxRenderer?
     weak var view: MTKView?
 
-    /// 返回 (rgb 3ch, hole 1ch[1=露出待补全])；无渲染器/尺寸为 0 时返回 nil。
+    /// 返回 (rgb 3ch, hole 1ch[1=待重新生成])；无渲染器/尺寸为 0 时返回 nil。
     func snapshot() -> (rgb: FloatImage, hole: FloatImage)? {
         guard let r = renderer, let scene = r.scene, let v = view else { return nil }
         let dw = Int(v.drawableSize.width), dh = Int(v.drawableSize.height)
         guard dw > 0, dh > 0 else { return nil }
         let off = simd_clamp(r.panOffset, SIMD2<Float>(-1, -1), SIMD2<Float>(1, 1))
-        guard let tex = r.renderOffscreen(scene: scene, offset: off, width: dw, height: dh,
-                                          clearColor: MTLClearColorMake(1, 0, 1, 1)),
-              let cg = TextureIO.cgImage(from: tex) else { return nil }
-        let img = FloatImage.fromCGImage(cg, width: dw, height: dh)   // 4ch RGBA
+
+        // ① 当前机位的彩色帧（画框外清黑；洞内容会被补全器忽略）。
+        guard let colorTex = r.renderOffscreen(scene: scene, offset: off, width: dw, height: dh),
+              let ccg = TextureIO.cgImage(from: colorTex) else { return nil }
+        let cimg = FloatImage.fromCGImage(ccg, width: dw, height: dh)
+
+        // ② 洞掩膜帧：白色清屏(画框外=洞)，maskMode 输出 fillMask 与前景覆盖。
+        guard let maskTex = r.renderOffscreen(scene: scene, offset: off, width: dw, height: dh,
+                                              clearColor: MTLClearColorMake(1, 1, 1, 1), debugMode: 4),
+              let mcg = TextureIO.cgImage(from: maskTex) else { return nil }
+        let mimg = FloatImage.fromCGImage(mcg, width: dw, height: dh)
+
         var rgb = FloatImage(width: dw, height: dh, channels: 3)
         var hole = FloatImage(width: dw, height: dh, channels: 1)
         for p in 0..<(dw * dh) {
-            let rr = img.pixels[p * 4], gg = img.pixels[p * 4 + 1], bb = img.pixels[p * 4 + 2]
-            rgb.pixels[p * 3] = rr; rgb.pixels[p * 3 + 1] = gg; rgb.pixels[p * 3 + 2] = bb
-            hole.pixels[p] = (rr > 0.8 && gg < 0.2 && bb > 0.8) ? 1 : 0   // 命中哨兵品红=洞
+            rgb.pixels[p * 3] = cimg.pixels[p * 4]
+            rgb.pixels[p * 3 + 1] = cimg.pixels[p * 4 + 1]
+            rgb.pixels[p * 3 + 2] = cimg.pixels[p * 4 + 2]
+            hole.pixels[p] = mimg.pixels[p * 4] > 0.5 ? 1 : 0   // 掩膜 R>0.5 = 洞
         }
         return (rgb, hole.dilated(radius: 2))   // 膨胀吞掉 MSAA 抗锯齿过渡边
     }

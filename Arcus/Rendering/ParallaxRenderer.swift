@@ -214,7 +214,8 @@ final class ParallaxRenderer: NSObject, MTKViewDelegate {
 
     func renderOffscreen(scene: Photo3DScene, offset: SIMD2<Float>,
                          width: Int, height: Int,
-                         clearColor: MTLClearColor = MTLClearColorMake(0, 0, 0, 1)) -> MTLTexture? {
+                         clearColor: MTLClearColor = MTLClearColorMake(0, 0, 0, 1),
+                         debugMode: Int32 = 0) -> MTLTexture? {
         guard let target = ctx.makeRenderTarget(width: width, height: height) else { return nil }
         // 4× MSAA：多重采样色附件 → resolve 到单采样 target。
         let md = MTLTextureDescriptor.texture2DDescriptor(pixelFormat: .bgra8Unorm,
@@ -235,7 +236,7 @@ final class ParallaxRenderer: NSObject, MTKViewDelegate {
         let savedViewport = viewportSize
         viewportSize = CGSize(width: width, height: height)
         var u = makeUniforms(offset: offset)
-        u.debugMode = 0
+        u.debugMode = debugMode
         encode(scene: scene, uniforms: u, descriptor: rpd, commandBuffer: cb)
         viewportSize = savedViewport
 

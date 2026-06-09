@@ -209,9 +209,19 @@ final class Photo3DPipeline {
             ? SIMD2<Float>(Float(cxSum / cN) / Float(W), Float(cySum / cN) / Float(H))
             : SIMD2<Float>(0.5, 0.5)
 
+        // 把「补全区掩膜」烤进背景层 alpha：subj=1 处即主体footprint=处理时被填充的像素。
+        // 正常渲染从不读 bg.alpha（背景 alpha 恒置 1），故无副作用；仅供「重拍·补全主体背后」识别哪些是烤进去的填充。
+        var bgColor4 = FloatImage(width: W, height: H, channels: 4)
+        for p in 0..<(W * H) {
+            bgColor4.pixels[p * 4 + 0] = bgColorImg.pixels[p * 3 + 0]
+            bgColor4.pixels[p * 4 + 1] = bgColorImg.pixels[p * 3 + 1]
+            bgColor4.pixels[p * 4 + 2] = bgColorImg.pixels[p * 3 + 2]
+            bgColor4.pixels[p * 4 + 3] = subj.pixels[p] > 0.5 ? 1 : 0
+        }
+
         guard let depthTex = fgDisp.uploadScalarTexture(),
               let fgColorTex = fg.uploadColorTexture(),
-              let bgColorTex = bgColorImg.uploadColorTexture(),
+              let bgColorTex = bgColor4.uploadColorTexture(),
               let bgDepthTex = bgDepthImg.uploadScalarTexture() else {
             throw PipelineError.textureAllocation
         }

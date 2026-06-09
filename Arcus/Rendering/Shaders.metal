@@ -59,5 +59,15 @@ fragment float4 mesh_fragment(VOut in [[stage_in]],
     // 改用屏幕空间导数 fwidth(c.a) 自适应阈宽：无论 fgScale 放大与否，剪影恒得 ~1px 软 coverage ⇒ 消锯齿。
     float aa = max(fwidth(c.a) * 0.7, 0.0015);
     float a  = fg ? smoothstep(0.5 - aa, 0.5 + aa, c.a) : 1.0;
+
+    // debugMode 4 = 「重拍·补全主体背后」的洞掩膜：
+    //   背景输出 fillMask(=bgColor.a，1=处理时烤进去的填充)；前景按 matte 覆盖输出预乘 0
+    //   ⇒ 当前被主体盖住的不算洞。配合白色清屏，画框外露出的也=洞。
+    //   结果 R>0.5 的像素 = 需要重新生成（画框外的边 + 主体让开后露出的填充）。
+    if (u.debugMode == 4) {
+        if (fg) return float4(0.0, 0.0, 0.0, a);
+        return float4(c.a, c.a, c.a, 1.0);
+    }
+
     return float4(c.rgb * a, a);                 // 预乘，配合 over 混合 (one / 1-srcAlpha)
 }
