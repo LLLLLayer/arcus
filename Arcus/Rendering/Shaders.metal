@@ -42,6 +42,31 @@ vertex VOut mesh_vertex(uint vid [[vertex_id]],
     return o;
 }
 
+// ---- 「出框」画框条：屏幕空间静止竖条，画在背景层之后、前景之前 ----
+// 背景被框在条后、主体随视差跨到条前 ⇒ 经典裸眼 3D「出框」错觉（前/框/后三层深度线索）。
+struct BarUniforms {
+    float4 rect;    // NDC：x=左, y=下, z=右, w=上
+    float4 color;   // 预乘 RGBA
+};
+
+vertex VOut bar_vertex(uint vid [[vertex_id]],
+                       constant BarUniforms& b [[buffer(1)]]) {
+    // 6 顶点两三角铺满 rect；MSAA 负责条边抗锯齿。
+    float2 corners[6] = {
+        float2(b.rect.x, b.rect.y), float2(b.rect.z, b.rect.y), float2(b.rect.x, b.rect.w),
+        float2(b.rect.x, b.rect.w), float2(b.rect.z, b.rect.y), float2(b.rect.z, b.rect.w)
+    };
+    VOut o;
+    o.pos = float4(corners[vid], 0.0, 1.0);
+    o.uv  = float2(0.0);
+    return o;
+}
+
+fragment float4 bar_fragment(VOut in [[stage_in]],
+                             constant BarUniforms& b [[buffer(1)]]) {
+    return b.color;
+}
+
 fragment float4 mesh_fragment(VOut in [[stage_in]],
                               texture2d<float> colorTex [[texture(0)]],
                               texture2d<float> dispTex  [[texture(1)]],

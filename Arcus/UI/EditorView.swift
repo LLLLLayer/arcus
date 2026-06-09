@@ -60,6 +60,7 @@ struct EditorView: View {
         p.fgScale = max(p.fgScale, 1.1)
         p.multiLayerBg = false                   // 重拍只用单背景层 ⇒ 「补全主体背后」的洞掩膜干净（仅 bg+fg）
         p.fitImage = true                        // 与普通查看一致的取景(原图比例+overscan) ⇒ 进入重拍不跳帧；移动/缩放才露边
+        p.frameBars = false                      // 重拍不画「出框」条：成片/洞掩膜都不该混入装饰层
         return p
     }
 
