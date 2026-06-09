@@ -35,6 +35,12 @@ struct ContentView: View {
             if env["AUTOSAMPLE"] == "1", model.stage == .idle {
                 if let dm = env["DEBUGMODE"], let v = Int32(dm) { model.params.debugMode = v }
                 if env["AUTOANIM"] == "1" { model.params.autoAnimate = true }
+                switch env["FILLMODE"] {                       // 冒烟测试用：指定补全模式
+                case "migan": model.fillMode = .migan
+                case "patchMatch": model.fillMode = .patchMatch
+                case "fast": model.fillMode = .fast
+                default: break
+                }
                 model.processSample()
             }
         }

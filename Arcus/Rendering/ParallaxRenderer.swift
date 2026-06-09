@@ -19,12 +19,14 @@ struct MeshUniforms {
 /// 渲染可调参数（由 UI 绑定）。
 struct ViewerParams {
     var parallaxAmp: Float = 0.04        // 3D 强度
-    var bgParallaxFactor: Float = 0.2    // 背景跟随（越小，主体越“跳出”，露出的去遮挡带更少）
+    var bgParallaxFactor: Float = 0.5    // 背景跟随（陀螺转动时背景也明显移动，像 Apple 空间照片；多层背景给近/远不同位移=内部视差）
     var debugMode: Int32 = 0             // 0 正常,1 深度,2 主体,3 背景
     var motionEnabled: Bool = true
     var autoAnimate: Bool = false
-    var multiLayerBg: Bool = false       // 背景再分层（近景背景中间层 + 远景背景打底）
+    var multiLayerBg: Bool = true        // 背景再分层（近景背景中间层 + 远景背景打底）：默认开启
     var fgScale: Float = 1.05            // 前景整体放大(1=原尺寸)：放大主体盖住身后的去遮挡过渡带
+    var reframeMode: Bool = false        // 「重拍」入口：拖动=移机位(大范围、不回弹)，双指=缩放；默认 false ⇒ 普通查看完全不受影响
+    var fitImage: Bool = true            // true=按原图比例完整展示(letterbox，不裁切)；false=cover 撑满裁切(重拍沉浸态用)
 }
 
 /// Metal 连续深度网格 warp 渲染器（2 层软 LDI，无深度缓冲——靠绘制顺序 + 剪影切口处理遮挡）：
@@ -46,6 +48,7 @@ final class ParallaxRenderer: NSObject, MTKViewDelegate {
 
     var panOffset = SIMD2<Float>(0, 0)
     var isPanning = false
+    var zoomLevel: Float = 1            // 「重拍」双指缩放，乘到 viewScale；普通查看恒为 1（updateUIView 强制复位）
 
     private var frame: Int = 0
 
@@ -87,7 +90,7 @@ final class ParallaxRenderer: NSObject, MTKViewDelegate {
     // MARK: - 偏移合成
 
     private func currentOffset() -> SIMD2<Float> {
-        if !isPanning { panOffset *= 0.88 }
+        if !isPanning && !params.reframeMode { panOffset *= 0.88 }   // 重拍：保持所选机位不回弹
         var off = panOffset
         if params.motionEnabled { off += motion.sample() }
         if params.autoAnimate {
@@ -97,22 +100,30 @@ final class ParallaxRenderer: NSObject, MTKViewDelegate {
         return simd_clamp(off, SIMD2<Float>(-1.0, -1.0), SIMD2<Float>(1.0, 1.0))
     }
 
-    /// 几何 cover 缩放：把图像方格放进视口且**保持比例**（溢出轴裁掉，不拉伸）。
-    /// viewScale ≥ 1 的轴溢出视口（cover），overscan 再放大一点给视差留边。
+    /// 几何缩放：把图像方格放进视口且**保持原图比例**（不拉伸）。
+    /// - fit（默认）：保持原图比例(4:3 不被拉成 16:9)，但**稍作放大裁切(overscan)**给视差留边——
+    ///   这样陀螺/拖拽时画面边缘不会露出黑边、画框保持满幅静止，体验更稳。
+    /// - cover（重拍沉浸态）：撑满视口、溢出轴裁掉。
     private func viewScale(imageAspect: Float) -> SIMD2<Float> {
         let viewAspect = Float(max(viewportSize.width, 1) / max(viewportSize.height, 1))
         let r = imageAspect / viewAspect
         var sx: Float = 1, sy: Float = 1
-        if r >= 1 { sx = r; sy = 1 } else { sx = 1; sy = 1 / r }
-        let overscan: Float = 1.06
-        return SIMD2<Float>(sx * overscan, sy * overscan)
+        let overscan: Float = 1.06   // 稍微放大裁切：盖住视差移动露出的边，画框保持满幅静止
+        if params.fitImage {
+            // fit：缩小较长的那个轴使整图入框（与 cover 的分支相反），再乘 overscan 留视差边
+            if r >= 1 { sx = 1; sy = 1 / r } else { sx = r; sy = 1 }
+            return SIMD2<Float>(sx * overscan * zoomLevel, sy * overscan * zoomLevel)
+        } else {
+            if r >= 1 { sx = r; sy = 1 } else { sx = 1; sy = 1 / r }
+            return SIMD2<Float>(sx * overscan * zoomLevel, sy * overscan * zoomLevel)
+        }
     }
 
     private func makeUniforms(offset: SIMD2<Float>) -> MeshUniforms {
         var u = MeshUniforms()
         u.offset = offset
         u.parallaxAmp = params.parallaxAmp
-        u.depthPivot = 0.5
+        u.depthPivot = scene?.depthPivot ?? 0.5   // 自适应：偏向主体深度 ⇒ 主体锚定、深层背景扫动(运镜)
         u.debugMode = params.debugMode
         u.viewScale = viewScale(imageAspect: scene?.aspect ?? 1)
         return u
@@ -154,9 +165,9 @@ final class ParallaxRenderer: NSObject, MTKViewDelegate {
         if let ml = ml, ml.midIndexCount > 0 {
             enc.setRenderPipelineState(blendState)
             var um = uniforms; um.layerFactor = params.bgParallaxFactor; um.fgFlag = 1
-            // 中间层也「整体放大」盖住其身后远景的去遮挡带。比前景温和(它动得少、露出的带更窄)：
-            // 取前景放大量的 0.6 倍，绕近景背景自身质心。
-            um.fgScale = 1 + (params.fgScale - 1) * 0.6
+            // 中间层「整体放大」盖住其身后远景的去遮挡带。放大量按**深度比例**(越远越小，烘焙时算好)：
+            // 近的近景背景放大多、远的放大少 ⇒ 远层倍率自然压低（用户：离得远的别太高）。
+            um.fgScale = 1 + (params.fgScale - 1) * ml.midScaleFactor
             um.fgCenter = ml.midCenter
             enc.setVertexBytes(&um, length: stride, index: 1)
             enc.setVertexTexture(ml.midDepth, index: 0)
@@ -211,7 +222,9 @@ final class ParallaxRenderer: NSObject, MTKViewDelegate {
     // MARK: - 离屏渲染（导出用）
 
     func renderOffscreen(scene: Photo3DScene, offset: SIMD2<Float>,
-                         width: Int, height: Int) -> MTLTexture? {
+                         width: Int, height: Int,
+                         clearColor: MTLClearColor = MTLClearColorMake(0, 0, 0, 1),
+                         debugMode: Int32 = 0) -> MTLTexture? {
         guard let target = ctx.makeRenderTarget(width: width, height: height) else { return nil }
         // 4× MSAA：多重采样色附件 → resolve 到单采样 target。
         let md = MTLTextureDescriptor.texture2DDescriptor(pixelFormat: .bgra8Unorm,
@@ -226,13 +239,13 @@ final class ParallaxRenderer: NSObject, MTKViewDelegate {
         rpd.colorAttachments[0].resolveTexture = target
         rpd.colorAttachments[0].loadAction = .clear
         rpd.colorAttachments[0].storeAction = .multisampleResolve
-        rpd.colorAttachments[0].clearColor = MTLClearColorMake(0, 0, 0, 1)
+        rpd.colorAttachments[0].clearColor = clearColor
         guard let cb = ctx.queue.makeCommandBuffer() else { return nil }
 
         let savedViewport = viewportSize
         viewportSize = CGSize(width: width, height: height)
         var u = makeUniforms(offset: offset)
-        u.debugMode = 0
+        u.debugMode = debugMode
         encode(scene: scene, uniforms: u, descriptor: rpd, commandBuffer: cb)
         viewportSize = savedViewport
 
