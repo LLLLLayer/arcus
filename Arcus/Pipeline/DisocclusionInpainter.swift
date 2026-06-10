@@ -127,11 +127,16 @@ enum DisocclusionInpainter {
         }
         // 竖条纹去除：竖直填充在复杂结构(树冠等)处会拉出细竖条纹。检测「局部横向方差高」
         // (=条纹)的洞像素，按方差强度把它混向横向模糊；连贯竖直结构(单根树干)保持锐利。
+        // 模糊是纯横向的，blurH 只在洞像素处被读取 ⇒ 只需计算「含洞的行」，整图大部分行直接跳过。
+        var rowHasHole = [Bool](repeating: false, count: h)
+        for y in 0..<h {
+            for x in 0..<w where valid.pixels[y * w + x] <= 0.5 { rowHasHole[y] = true; break }
+        }
         let r = max(3, w / 60)
         var blurH = vfill
         vfill.pixels.withUnsafeBufferPointer { src in
             blurH.pixels.withUnsafeMutableBufferPointer { dst in
-                for y in 0..<h {
+                for y in 0..<h where rowHasHole[y] {
                     let row = y * w
                     for x in 0..<w {
                         for c in 0..<ch {

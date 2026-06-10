@@ -59,6 +59,7 @@ final class ParallaxRenderer: NSObject, MTKViewDelegate {
     var zoomLevel: Float = 1            // 「重拍」双指缩放，乘到 viewScale；普通查看恒为 1（updateUIView 强制复位）
 
     private var frame: Int = 0
+    private var offscreenMSAA: MTLTexture?   // 离屏渲染的 MSAA 附件缓存：导出逐帧渲染时复用（1080p 单张 ~33MB，不能每帧新建）
 
     init(pixelFormat: MTLPixelFormat) {
         super.init()
@@ -242,6 +243,7 @@ final class ParallaxRenderer: NSObject, MTKViewDelegate {
 
     func draw(in view: MTKView) {
         frame &+= 1
+        motion.interfaceOrientation = view.window?.windowScene?.interfaceOrientation ?? .portrait
         guard let rpd = view.currentRenderPassDescriptor,
               let drawable = view.currentDrawable,
               let cb = ctx.queue.makeCommandBuffer() else { return }
@@ -266,13 +268,22 @@ final class ParallaxRenderer: NSObject, MTKViewDelegate {
                          debugMode: Int32 = 0) -> MTLTexture? {
         guard let target = ctx.makeRenderTarget(width: width, height: height) else { return nil }
         // 4× MSAA：多重采样色附件 → resolve 到单采样 target。
-        let md = MTLTextureDescriptor.texture2DDescriptor(pixelFormat: .bgra8Unorm,
-                                                          width: max(1, width), height: max(1, height), mipmapped: false)
-        md.textureType = .type2DMultisample
-        md.sampleCount = Self.sampleCount
-        md.usage = [.renderTarget]
-        md.storageMode = .private
-        guard let msaa = ctx.device.makeTexture(descriptor: md) else { return nil }
+        // MSAA 附件按尺寸缓存复用（每次 waitUntilCompleted 后才返回，无跨帧并用）；
+        // target 不能缓存——调用方可能同时持有多个返回值（如空间照片的左右眼）。
+        let msaa: MTLTexture
+        if let cached = offscreenMSAA, cached.width == width, cached.height == height {
+            msaa = cached
+        } else {
+            let md = MTLTextureDescriptor.texture2DDescriptor(pixelFormat: .bgra8Unorm,
+                                                              width: max(1, width), height: max(1, height), mipmapped: false)
+            md.textureType = .type2DMultisample
+            md.sampleCount = Self.sampleCount
+            md.usage = [.renderTarget]
+            md.storageMode = .private
+            guard let made = ctx.device.makeTexture(descriptor: md) else { return nil }
+            offscreenMSAA = made
+            msaa = made
+        }
         let rpd = MTLRenderPassDescriptor()
         rpd.colorAttachments[0].texture = msaa
         rpd.colorAttachments[0].resolveTexture = target

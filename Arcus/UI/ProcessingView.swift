@@ -27,6 +27,17 @@ struct ProcessingView: View {
             Text("端侧处理中 · 深度 → 分割 → 背景补全 → 烘焙")
                 .font(.caption)
                 .foregroundStyle(.white.opacity(0.4))
+
+            Button {
+                model.cancelProcessing()
+            } label: {
+                Text("取消")
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(.white.opacity(0.85))
+                    .padding(.horizontal, 26).padding(.vertical, 10)
+                    .background(.white.opacity(0.10), in: Capsule())
+            }
+            .padding(.top, 6)
         }
         .padding(40)
     }

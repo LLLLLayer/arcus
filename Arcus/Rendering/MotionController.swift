@@ -1,5 +1,6 @@
 import Foundation
 import CoreMotion
+import UIKit
 import simd
 
 /// 用陀螺仪姿态驱动视差。每帧在渲染线程同步拉取最新姿态（无跨线程竞争），
@@ -16,6 +17,9 @@ final class MotionController {
     var maxAngle: Float = 0.40
     /// 低通系数（越小越平滑）。
     var smoothing: Float = 0.12
+    /// 当前界面方向（渲染器每帧从 view 同步）：roll/pitch 是设备系角度，须按界面方向
+    /// 旋转到屏幕系。iPhone 锁竖屏不受影响；iPad 横屏下不换轴会与视差轴错 90°。
+    var interfaceOrientation: UIInterfaceOrientation = .portrait
 
     private(set) var enabled = false
 
@@ -47,9 +51,16 @@ final class MotionController {
         }
         let dRoll = Float(att.roll - refRoll)
         let dPitch = Float(att.pitch - refPitch)
-        // roll → 水平视差，pitch → 垂直视差。
-        let tx = max(-1, min(1, dRoll / maxAngle))
-        let ty = max(-1, min(1, dPitch / maxAngle))
+        // 设备系 → 屏幕系：竖屏 roll(绕设备长轴) → 水平视差、pitch(绕短轴) → 垂直视差；横屏对调并修正符号。
+        let hx: Float, vy: Float
+        switch interfaceOrientation {
+        case .landscapeRight:     hx = dPitch;  vy = -dRoll
+        case .landscapeLeft:      hx = -dPitch; vy = dRoll
+        case .portraitUpsideDown: hx = -dRoll;  vy = -dPitch
+        default:                  hx = dRoll;   vy = dPitch
+        }
+        let tx = max(-1, min(1, hx / maxAngle))
+        let ty = max(-1, min(1, vy / maxAngle))
         let target = SIMD2<Float>(tx, ty)
         filtered += (target - filtered) * smoothing
         return filtered

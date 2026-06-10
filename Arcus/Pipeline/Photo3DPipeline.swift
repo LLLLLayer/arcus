@@ -46,6 +46,12 @@ final class Photo3DPipeline {
     var isDepthModelAvailable: Bool { depthEstimator.isModelAvailable }
     var isLamaAvailable: Bool { lamaInpainter.isAvailable }
 
+    /// 「重拍·补全这一视角」的补全入口：LaMa 优先（FFC 擅长外扩），失败/缺失回退 MI-GAN。
+    /// 复用常驻实例 ⇒ 模型只在首次补全时加载一次，而不是每次点按钮都重新加载（秒级开销）。
+    func reframeInpaint(rgb: FloatImage, hole: FloatImage) -> FloatImage? {
+        lamaInpainter.inpaint(rgb: rgb, hole: hole) ?? miganInpainter.inpaint(rgb: rgb, hole: hole)
+    }
+
     func process(image: UIImage,
                  avDepth: AVDepthData? = nil,
                  options: Options = Options(),
@@ -59,10 +65,13 @@ final class Photo3DPipeline {
         let cg = work.cg, W = work.width, H = work.height
         let color = FloatImage.fromCGImage(cg, width: W, height: H)   // rgba
 
+        // 取消检查放在各阶段边界：用户取消后尽快退出（PatchMatch/MI-GAN 模式整条管线 10s+）。
+        try Task.checkCancellation()
         progress(0.20, "估计深度…")
         let depthResult = depthEstimator.estimate(cgImage: cg, width: W, height: H, avDepth: avDepth)
         var disparity = depthResult.disparity
 
+        try Task.checkCancellation()
         progress(0.45, "分割主体…")
         let segResult = segmenter.segment(cgImage: cg, width: W, height: H)
 
@@ -75,7 +84,9 @@ final class Photo3DPipeline {
             // 用 mask 自动校正深度远近方向（保证主体处视差更大）。
             orientDisparity(&disparity, mask: mask)
         } else {
-            // 无系统分割：先确保 disparity 近=大（默认信任来源），再阈值取近景为前景。
+            // 无系统分割：先用「画面下部通常更近」启发式校正远近方向（模型/来源输出方向不一），
+            // 再阈值取近景为前景——方向反了 nearFieldMask 会把远景当主体。
+            orientDisparityBottomNear(&disparity)
             mask = nearFieldMask(from: disparity)
             segSource = SubjectSegmenter.Source.none.rawValue
         }
@@ -97,6 +108,7 @@ final class Photo3DPipeline {
         // 边缘保持式深度去噪（中值）——保留深度断层，替代会糊掉悬崖的方框模糊。
         disparity = disparity.median3()
 
+        try Task.checkCancellation()
         progress(0.62, "补全主体背后的背景…")
 
         let longSide = Float(max(W, H))
@@ -146,6 +158,7 @@ final class Photo3DPipeline {
         //   改为**对补全后的彩色图重新估计一遍深度**：MI-GAN 生成的内容由此获得「与画面连续、且与所画内容一致」
         //   的真实深度——脚下小路会被估成向远处递退的渐变，正好接上真实地面，不再错层。
         // 普通模式：push-pull 平滑扩散（从边界向洞内传播真实深度，连续）。
+        try Task.checkCancellation()
         let inpaintSide = 640
         let s = Float(inpaintSide) / longSide
         let iw = max(2, Int((Float(W) * s).rounded()))
@@ -163,6 +176,7 @@ final class Photo3DPipeline {
             bgDepthImg = DisocclusionInpainter.pushPullFill(dispSmall, valid: validSmall).resized(to: W, to: H)
         }
 
+        try Task.checkCancellation()
         progress(0.85, "烘焙 3D 网格…")
 
         // 前景几何深度——关键：
@@ -369,6 +383,24 @@ final class Photo3DPipeline {
         let outMean = outN > 0 ? outSum / outN : 0
         if inMean < outMean {
             for p in 0..<n { disp.pixels[p] = 1 - disp.pixels[p] }
+        }
+    }
+
+    /// 无 mask 可参考时的方向校正：自然照片下 1/3（地面/近景）几乎总比上 1/3（天空/远景）近，
+    /// 若下部平均视差反而更小则整体翻转（保证 1=近）。
+    private func orientDisparityBottomNear(_ disp: inout FloatImage) {
+        let w = disp.width, h = disp.height
+        let third = h / 3
+        guard third > 0 else { return }
+        var top: Float = 0, bottom: Float = 0
+        for y in 0..<third {
+            for x in 0..<w { top += disp.pixels[y * w + x] }
+        }
+        for y in (h - third)..<h {
+            for x in 0..<w { bottom += disp.pixels[y * w + x] }
+        }
+        if bottom < top {
+            for p in 0..<(w * h) { disp.pixels[p] = 1 - disp.pixels[p] }
         }
     }
 

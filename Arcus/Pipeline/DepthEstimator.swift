@@ -22,10 +22,22 @@ final class DepthEstimator {
     private var vnModel: VNCoreMLModel?
     private var triedLoad = false
 
-    /// 模型是否可用（用于 UI 提示）。
+    /// 模型文件是否存在（用于 UI 提示）。只查文件、不加载/编译模型——
+    /// 这个检查在首屏主线程触发，真正的加载留到 estimate() 在后台首次推理时做。
     var isModelAvailable: Bool {
-        loadModelIfNeeded()
-        return vnModel != nil
+        if vnModel != nil { return true }
+        for name in Self.modelCandidates {
+            if Bundle.main.url(forResource: name, withExtension: "mlmodelc") != nil { return true }
+            if Bundle.main.url(forResource: name, withExtension: "mlpackage") != nil { return true }
+        }
+        if let res = Bundle.main.resourceURL,
+           let items = try? FileManager.default.contentsOfDirectory(at: res, includingPropertiesForKeys: nil) {
+            return items.contains {
+                ($0.pathExtension == "mlmodelc" || $0.pathExtension == "mlpackage")
+                    && $0.lastPathComponent.localizedCaseInsensitiveContains("depth")
+            }
+        }
+        return false
     }
 
     // MARK: - 模型加载（动态，不依赖编译期生成的类）
