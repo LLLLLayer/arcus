@@ -30,7 +30,7 @@
 
 渲染不是「平面沿 Z 位移」：每层是一张连续 (u,v) 网格，顶点着色器按逐像素视差**前向 warp 屏幕位置**；前景网格在剪影深度断层处切开，露出补全背景。主体绕质心整体放大盖住去遮挡过渡带。
 
-> `docs/` 下另有完整的调研与设计笔记（深度估计、补全算法选型、渲染重构、抗锯齿、重拍、出框等），属内部研究记录，未纳入版本库。
+> 另有深度估计、补全算法选型、渲染重构、抗锯齿、重拍、出框等的完整调研与设计笔记，属内部研究记录，未纳入版本库。
 
 ## 快速开始
 
@@ -74,9 +74,8 @@ Arcus/
   Export/            视差视频 / 空间照片 / 相册保存
   UI/                SwiftUI 界面（首页 / 处理 / 编辑器 / 重拍 / 导出）
   Resources/         Assets + (运行时) Core ML 模型
-docs/                内部调研与设计笔记（未纳入版本库）
 ```
 
 ## 致谢 / 复用的开源工作
 
-技术与规范参考（非逐字搬运代码）：Depth Anything V2（Apple Core ML 转换）、LaMa (Suvorov et al. WACV'22)、MI-GAN (Sargsyan et al. ICCV'23)、PatchMatch (Barnes et al. SIGGRAPH'09)、3D Photo Inpainting (Shih et al. CVPR'20) 的 LDI 思路、One Shot 3D Photography 的端侧蓝图、`3dify-ios` / `iOS-Depth-Sampler` 的 iOS 集成范式。
+技术与规范参考（非逐字搬运代码）：Depth Anything V2（Apple Core ML 转换）、LaMa (Suvorov et al. WACV'22)、MI-GAN (Sargsyan et al. ICCV'23)、PatchMatch (Barnes et al. SIGGRAPH'09)、3D Photo Inpainting (Shih et al. CVPR'20) 的 LDI 思路、One Shot 3D Photography 的端侧蓝图、`iOS-Depth-Sampler`（shu223）的 iOS 深度采样集成范式。
