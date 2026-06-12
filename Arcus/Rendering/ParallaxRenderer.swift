@@ -27,6 +27,7 @@ struct ViewerParams {
     var fgScale: Float = 1.05            // 前景整体放大(1=原尺寸)：放大主体盖住身后的去遮挡过渡带
     var reframeMode: Bool = false        // 「重拍」入口：拖动=移机位(大范围、不回弹)，双指=缩放；默认 false ⇒ 普通查看完全不受影响
     var fitImage: Bool = true            // true=按原图比例完整展示(letterbox，不裁切)；false=cover 撑满裁切(重拍沉浸态用)
+    var frameBars: Bool = false          // 「出框」：背景与前景之间夹一对屏幕空间静止白条，主体随视差跨到条前 ⇒ 裸眼 3D 出框感
 }
 
 /// Metal 连续深度网格 warp 渲染器（2 层软 LDI，无深度缓冲——靠绘制顺序 + 剪影切口处理遮挡）：
@@ -37,9 +38,16 @@ final class ParallaxRenderer: NSObject, MTKViewDelegate {
 
     static let sampleCount = 4   // 4× MSAA：抗锯齿前景剪影切口（与 MTKView.sampleCount 一致）
 
+    /// 与 Shaders.metal 的 BarUniforms 对应：「出框」画框条（NDC rect + 预乘色）。
+    private struct BarUniforms {
+        var rect: SIMD4<Float>    // x=左, y=下, z=右, w=上
+        var color: SIMD4<Float>
+    }
+
     private let ctx = MetalContext.shared
     private var opaqueState: MTLRenderPipelineState!   // 背景：不透明
     private var blendState: MTLRenderPipelineState!    // 前景：预乘 over
+    private var barState: MTLRenderPipelineState!      // 「出框」画框条：预乘 over
     private var viewportSize = CGSize(width: 1, height: 1)
 
     var scene: Photo3DScene?
@@ -51,6 +59,7 @@ final class ParallaxRenderer: NSObject, MTKViewDelegate {
     var zoomLevel: Float = 1            // 「重拍」双指缩放，乘到 viewScale；普通查看恒为 1（updateUIView 强制复位）
 
     private var frame: Int = 0
+    private var offscreenMSAA: MTLTexture?   // 离屏渲染的 MSAA 附件缓存：导出逐帧渲染时复用（1080p 单张 ~33MB，不能每帧新建）
 
     init(pixelFormat: MTLPixelFormat) {
         super.init()
@@ -82,6 +91,21 @@ final class ParallaxRenderer: NSObject, MTKViewDelegate {
             a.destinationRGBBlendFactor = .oneMinusSourceAlpha
             a.destinationAlphaBlendFactor = .oneMinusSourceAlpha
             blendState = try ctx.device.makeRenderPipelineState(descriptor: d2)
+
+            let d3 = MTLRenderPipelineDescriptor()
+            d3.vertexFunction = ctx.library.makeFunction(name: "bar_vertex")
+            d3.fragmentFunction = ctx.library.makeFunction(name: "bar_fragment")
+            d3.rasterSampleCount = Self.sampleCount
+            let b = d3.colorAttachments[0]!
+            b.pixelFormat = pixelFormat
+            b.isBlendingEnabled = true
+            b.rgbBlendOperation = .add
+            b.alphaBlendOperation = .add
+            b.sourceRGBBlendFactor = .one
+            b.sourceAlphaBlendFactor = .one
+            b.destinationRGBBlendFactor = .oneMinusSourceAlpha
+            b.destinationAlphaBlendFactor = .oneMinusSourceAlpha
+            barState = try ctx.device.makeRenderPipelineState(descriptor: d3)
         } catch {
             fatalError("创建渲染管线失败：\(error)")
         }
@@ -179,6 +203,22 @@ final class ParallaxRenderer: NSObject, MTKViewDelegate {
                                       indexBufferOffset: 0)
         }
 
+        // ---- 「出框」画框条：屏幕空间静止白条，夹在所有背景层与前景之间 ----
+        // 背景被框在条后、主体随视差跨到条前 ⇒ 前/框/后三层深度线索（经典裸眼 3D 出框）。
+        // 只在正常查看渲染（debug/掩膜 pass 不画，避免污染重拍洞掩膜）。
+        if params.frameBars && uniforms.debugMode == 0 {
+            enc.setRenderPipelineState(barState)
+            let sx = uniforms.viewScale.x
+            let halfW = 0.030 * sx                       // 条宽：相对图像宽度，缩放下保持比例
+            let white = SIMD4<Float>(0.92, 0.92, 0.92, 1)
+            for cx: Float in [-0.52 * sx, 0.52 * sx] {   // 约在图像 1/4、3/4 处；满视口高 ⇒ 比画面更"高"，框感更强
+                var bar = BarUniforms(rect: SIMD4<Float>(cx - halfW, -1, cx + halfW, 1), color: white)
+                enc.setVertexBytes(&bar, length: MemoryLayout<BarUniforms>.stride, index: 1)
+                enc.setFragmentBytes(&bar, length: MemoryLayout<BarUniforms>.stride, index: 1)
+                enc.drawPrimitives(type: .triangle, vertexStart: 0, vertexCount: 6)
+            }
+        }
+
         // ---- 前景：切开的主体网格，over 混合，按真实逐像素深度位移 ----
         if scene.fgIndexCount > 0 {
             enc.setRenderPipelineState(blendState)
@@ -203,6 +243,7 @@ final class ParallaxRenderer: NSObject, MTKViewDelegate {
 
     func draw(in view: MTKView) {
         frame &+= 1
+        motion.interfaceOrientation = view.window?.windowScene?.interfaceOrientation ?? .portrait
         guard let rpd = view.currentRenderPassDescriptor,
               let drawable = view.currentDrawable,
               let cb = ctx.queue.makeCommandBuffer() else { return }
@@ -227,13 +268,22 @@ final class ParallaxRenderer: NSObject, MTKViewDelegate {
                          debugMode: Int32 = 0) -> MTLTexture? {
         guard let target = ctx.makeRenderTarget(width: width, height: height) else { return nil }
         // 4× MSAA：多重采样色附件 → resolve 到单采样 target。
-        let md = MTLTextureDescriptor.texture2DDescriptor(pixelFormat: .bgra8Unorm,
-                                                          width: max(1, width), height: max(1, height), mipmapped: false)
-        md.textureType = .type2DMultisample
-        md.sampleCount = Self.sampleCount
-        md.usage = [.renderTarget]
-        md.storageMode = .private
-        guard let msaa = ctx.device.makeTexture(descriptor: md) else { return nil }
+        // MSAA 附件按尺寸缓存复用（每次 waitUntilCompleted 后才返回，无跨帧并用）；
+        // target 不能缓存——调用方可能同时持有多个返回值（如空间照片的左右眼）。
+        let msaa: MTLTexture
+        if let cached = offscreenMSAA, cached.width == width, cached.height == height {
+            msaa = cached
+        } else {
+            let md = MTLTextureDescriptor.texture2DDescriptor(pixelFormat: .bgra8Unorm,
+                                                              width: max(1, width), height: max(1, height), mipmapped: false)
+            md.textureType = .type2DMultisample
+            md.sampleCount = Self.sampleCount
+            md.usage = [.renderTarget]
+            md.storageMode = .private
+            guard let made = ctx.device.makeTexture(descriptor: md) else { return nil }
+            offscreenMSAA = made
+            msaa = made
+        }
         let rpd = MTLRenderPassDescriptor()
         rpd.colorAttachments[0].texture = msaa
         rpd.colorAttachments[0].resolveTexture = target

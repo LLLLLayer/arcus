@@ -6,7 +6,7 @@ import simd
 /// 用离屏渲染器逐帧渲染一条 Lissajous 相机轨迹，编码为 H.264。
 enum VideoExporter {
 
-    enum ExportError: Error { case writerInit, pixelBufferPool, render }
+    enum ExportError: Error { case writerInit, pixelBufferPool, render, timeout }
 
     struct Settings {
         var duration: Double = 4.0
@@ -39,7 +39,18 @@ enum VideoExporter {
         let videoSettings: [String: Any] = [
             AVVideoCodecKey: AVVideoCodecType.h264,
             AVVideoWidthKey: w,
-            AVVideoHeightKey: h
+            AVVideoHeightKey: h,
+            // 视差画面整帧都在动，默认码率容易糊；按 ~4 bit/px/帧给足。
+            AVVideoCompressionPropertiesKey: [
+                AVVideoAverageBitRateKey: max(4_000_000, w * h * 4),
+                AVVideoProfileLevelKey: AVVideoProfileLevelH264HighAutoLevel
+            ],
+            // 显式标记 709：渲染输出是 sRGB 内容，不标记时播放端猜色彩会产生偏色。
+            AVVideoColorPropertiesKey: [
+                AVVideoColorPrimariesKey: AVVideoColorPrimaries_ITU_R_709_2,
+                AVVideoTransferFunctionKey: AVVideoTransferFunction_ITU_R_709_2,
+                AVVideoYCbCrMatrixKey: AVVideoYCbCrMatrix_ITU_R_709_2
+            ]
         ]
         let input = AVAssetWriterInput(mediaType: .video, outputSettings: videoSettings)
         input.expectsMediaDataInRealTime = false
@@ -70,28 +81,35 @@ enum VideoExporter {
 
         guard let pool = adaptor.pixelBufferPool else { throw ExportError.pixelBufferPool }
 
-        for i in 0..<frameCount {
-            let t = Double(i) / Double(frameCount)           // 0…1 循环
-            let ang = Float(t) * 2 * .pi
-            // 水平为主的平滑 figure-8 轨迹，幅度收敛以减少极端机位的拉伸暴露（seamless 循环）。
-            // 注：更进一步的“显著性感知最小拉伸轨迹优化”留作后续(见 docs/05)。
-            let offset = SIMD2<Float>(sin(ang) * 0.8, sin(ang * 2) * 0.2)
+        do {
+            for i in 0..<frameCount {
+                try Task.checkCancellation()                 // 用户取消：中断逐帧渲染
+                let t = Double(i) / Double(frameCount)       // 0…1 循环
+                let ang = Float(t) * 2 * .pi
+                // 水平为主的平滑 figure-8 轨迹，幅度收敛以减少极端机位的拉伸暴露（seamless 循环）。
+                // 注：更进一步的“显著性感知最小拉伸轨迹优化”留作后续(见 docs/05)。
+                let offset = SIMD2<Float>(sin(ang) * 0.8, sin(ang * 2) * 0.2)
 
-            guard let tex = renderer.renderOffscreen(scene: scene, offset: offset, width: w, height: h) else {
-                throw ExportError.render
-            }
-            var pb: CVPixelBuffer?
-            CVPixelBufferPoolCreatePixelBuffer(nil, pool, &pb)
-            guard let pixelBuffer = pb else { throw ExportError.pixelBufferPool }
-            TextureIO.copy(texture: tex, into: pixelBuffer)
+                guard let tex = renderer.renderOffscreen(scene: scene, offset: offset, width: w, height: h) else {
+                    throw ExportError.render
+                }
+                var pb: CVPixelBuffer?
+                CVPixelBufferPoolCreatePixelBuffer(nil, pool, &pb)
+                guard let pixelBuffer = pb else { throw ExportError.pixelBufferPool }
+                TextureIO.copy(texture: tex, into: pixelBuffer)
 
-            let deadline = Date().addingTimeInterval(30)
-            while !input.isReadyForMoreMediaData {
-                if Date() > deadline { throw ExportError.writerInit }
-                usleep(2000)
+                let deadline = Date().addingTimeInterval(30)
+                while !input.isReadyForMoreMediaData {
+                    if Date() > deadline { throw ExportError.timeout }
+                    usleep(2000)
+                }
+                let pts = CMTimeMultiply(frameDuration, multiplier: Int32(i))
+                adaptor.append(pixelBuffer, withPresentationTime: pts)
             }
-            let pts = CMTimeMultiply(frameDuration, multiplier: Int32(i))
-            adaptor.append(pixelBuffer, withPresentationTime: pts)
+        } catch {
+            writer.cancelWriting()                           // 中断/出错：丢弃半成品文件
+            try? FileManager.default.removeItem(at: url)
+            throw error
         }
 
         input.markAsFinished()

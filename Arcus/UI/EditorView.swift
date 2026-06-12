@@ -60,6 +60,7 @@ struct EditorView: View {
         p.fgScale = max(p.fgScale, 1.1)
         p.multiLayerBg = false                   // 重拍只用单背景层 ⇒ 「补全主体背后」的洞掩膜干净（仅 bg+fg）
         p.fitImage = true                        // 与普通查看一致的取景(原图比例+overscan) ⇒ 进入重拍不跳帧；移动/缩放才露边
+        p.frameBars = false                      // 重拍不画「出框」条：成片/洞掩膜都不该混入装饰层
         return p
     }
 
@@ -154,10 +155,9 @@ struct EditorView: View {
                 return
             }
             let rgb = shot.rgb, hole = shot.hole
+            let pipeline = model.pipeline   // 复用常驻补全器：模型只加载一次，不是每次补全都重新加载
             let img: UIImage? = await Task.detached(priority: .userInitiated) {
-                let filled = LamaInpainter().inpaint(rgb: rgb, hole: hole)   // LaMa 的 FFC 擅长外扩
-                    ?? MiganInpainter().inpaint(rgb: rgb, hole: hole)
-                    ?? rgb
+                let filled = pipeline.reframeInpaint(rgb: rgb, hole: hole) ?? rgb
                 return filled.toCGImage().map { UIImage(cgImage: $0) }
             }.value
             await MainActor.run {
@@ -167,10 +167,24 @@ struct EditorView: View {
         }
     }
 
+    /// 与视频/空间照片导出走同一 MediaSaver 权限流：权限被拒/写入失败都有明确反馈，
+    /// 不再用无回调的 UIImageWriteToSavedPhotosAlbum（静默失败还误报成功）。
     private func saveReframeResult() {
         guard let img = reframeResult else { return }
-        UIImageWriteToSavedPhotosAlbum(img, nil, nil, nil)
-        model.toast = "已保存到相册"
+        Task {
+            do {
+                guard let data = img.jpegData(compressionQuality: 0.95) else {
+                    throw MediaSaver.SaveError.failed
+                }
+                let url = FileManager.default.temporaryDirectory
+                    .appendingPathComponent("Arcus-Reframe-\(UInt32.random(in: 0...UInt32.max)).jpg")
+                try data.write(to: url)
+                try await MediaSaver.saveImage(url)
+                model.toast = "已保存到相册"
+            } catch {
+                model.errorMessage = "保存到相册失败：\(error.localizedDescription)"
+            }
+        }
     }
 
     private var topBar: some View {
@@ -222,6 +236,15 @@ struct EditorView: View {
                 Text(model.exportMessage)
                     .font(.headline)
                     .foregroundStyle(.white)
+                Button {
+                    model.cancelExport()
+                } label: {
+                    Text("取消")
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(.white.opacity(0.85))
+                        .padding(.horizontal, 24).padding(.vertical, 9)
+                        .background(.white.opacity(0.12), in: Capsule())
+                }
             }
             .padding(30)
             .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 20))

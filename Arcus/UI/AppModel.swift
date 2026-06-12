@@ -25,10 +25,15 @@ final class AppModel: ObservableObject {
     let pipeline = Photo3DPipeline()
     private(set) lazy var depthModelAvailable: Bool = pipeline.isDepthModelAvailable
 
+    private var processingTask: Task<Void, Never>?
+    private var exportTask: Task<Void, Never>?
+
     // MARK: - 处理入口
 
     func processData(_ data: Data) {
-        guard let img = UIImage(data: data) else {
+        // ImageIO 子采样解码：摆正 + 降采样一步完成，超大照片(48MP)不在原始分辨率整图落内存。
+        let maxSide = Photo3DPipeline.Options().maxWorkingSide
+        guard let img = ImageUtils.downsampledImage(from: data, maxSide: maxSide) ?? UIImage(data: data) else {
             errorMessage = "无法读取所选图片。"
             return
         }
@@ -47,7 +52,7 @@ final class AppModel: ObservableObject {
         errorMessage = nil
         let pipeline = self.pipeline
         let fm = self.fillMode
-        Task.detached(priority: .userInitiated) {
+        processingTask = Task.detached(priority: .userInitiated) {
             do {
                 let scene = try pipeline.process(image: image, avDepth: avDepth,
                                                  options: Photo3DPipeline.Options(fillMode: fm)) { p, m in
@@ -69,6 +74,11 @@ final class AppModel: ObservableObject {
                     default: break
                     }
                 }
+            } catch is CancellationError {
+                await MainActor.run {     // 用户主动取消：静默回到首页，不当作错误
+                    self.stage = .idle
+                    self.progress = 0
+                }
             } catch {
                 await MainActor.run {
                     self.errorMessage = "处理失败：\(error.localizedDescription)"
@@ -76,6 +86,12 @@ final class AppModel: ObservableObject {
                 }
             }
         }
+    }
+
+    /// 取消处理：管线在各阶段节点检查 Task 取消并尽快退出。
+    func cancelProcessing() {
+        processingTask?.cancel()
+        progressMessage = "正在取消…"
     }
 
     func reset() {
@@ -91,7 +107,7 @@ final class AppModel: ObservableObject {
         isExporting = true
         exportMessage = "正在渲染视差视频…"
         let params = self.params
-        Task.detached(priority: .userInitiated) {
+        exportTask = Task.detached(priority: .userInitiated) {
             do {
                 let url = try VideoExporter.export(scene: scene, baseParams: params)
                 NSLog("[Export] 视频导出成功：%@", url.path)
@@ -99,6 +115,8 @@ final class AppModel: ObservableObject {
                     self.isExporting = false
                     self.exportResult = ExportResult(url: url, kind: .video)
                 }
+            } catch is CancellationError {
+                await MainActor.run { self.isExporting = false }
             } catch {
                 await MainActor.run {
                     self.isExporting = false
@@ -113,13 +131,15 @@ final class AppModel: ObservableObject {
         isExporting = true
         exportMessage = "正在渲染空间照片…"
         let params = self.params
-        Task.detached(priority: .userInitiated) {
+        exportTask = Task.detached(priority: .userInitiated) {
             do {
                 let url = try SpatialPhotoExporter.export(scene: scene, baseParams: params)
                 await MainActor.run {
                     self.isExporting = false
                     self.exportResult = ExportResult(url: url, kind: .spatial)
                 }
+            } catch is CancellationError {
+                await MainActor.run { self.isExporting = false }
             } catch {
                 await MainActor.run {
                     self.isExporting = false
@@ -127,6 +147,12 @@ final class AppModel: ObservableObject {
                 }
             }
         }
+    }
+
+    /// 取消导出：VideoExporter 在帧循环里检查 Task 取消，中断并清理半成品文件。
+    func cancelExport() {
+        exportTask?.cancel()
+        exportMessage = "正在取消…"
     }
 
     func saveToAlbum(_ result: ExportResult) {

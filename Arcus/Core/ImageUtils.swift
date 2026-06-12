@@ -6,26 +6,43 @@ import Accelerate
 
 enum ImageUtils {
 
+    /// 从原始照片数据直接解码出「已摆正 + 已降采样」的图（ImageIO 子采样解码）。
+    /// 不在原始分辨率上整图落内存：48MP 照片的解码峰值从 ~190MB 降到工作分辨率量级。
+    static func downsampledImage(from data: Data, maxSide: Int) -> UIImage? {
+        let srcOpts = [kCGImageSourceShouldCache: false] as CFDictionary
+        guard let src = CGImageSourceCreateWithData(data as CFData, srcOpts) else { return nil }
+        let opts: [CFString: Any] = [
+            kCGImageSourceCreateThumbnailFromImageAlways: true,
+            kCGImageSourceCreateThumbnailWithTransform: true,   // 同时应用 EXIF 方向
+            kCGImageSourceShouldCacheImmediately: true,
+            kCGImageSourceThumbnailMaxPixelSize: maxSide
+        ]
+        guard let cg = CGImageSourceCreateThumbnailAtIndex(src, 0, opts as CFDictionary) else { return nil }
+        return UIImage(cgImage: cg)
+    }
+
     /// 把任意 UIImage 摆正方向并降采样到长边 ≤ maxSide，返回工程统一使用的工作图。
+    /// 摆正 + 缩放在一次 draw 里完成（UIImage.draw 自带 EXIF 处理），不先在原始分辨率整图重绘。
     static func workingImage(from image: UIImage, maxSide: Int) -> (cg: CGImage, width: Int, height: Int)? {
-        let normalized = image.normalizedUp()
-        guard let cg0 = normalized.cgImage else { return nil }
-        let w0 = cg0.width, h0 = cg0.height
+        // UIImage.size 已计入 EXIF 方向（竖拍照片宽高已交换），按它算目标像素尺寸。
+        let w0 = image.size.width * image.scale
+        let h0 = image.size.height * image.scale
+        guard w0 >= 1, h0 >= 1 else { return nil }
         let longSide = max(w0, h0)
-        let scale = longSide > maxSide ? Double(maxSide) / Double(longSide) : 1.0
+        let scale = longSide > CGFloat(maxSide) ? CGFloat(maxSide) / longSide : 1.0
         // 让宽高为偶数，便于金字塔 / 视频编码。
-        var w = max(2, Int((Double(w0) * scale).rounded()))
-        var h = max(2, Int((Double(h0) * scale).rounded()))
+        var w = max(2, Int((w0 * scale).rounded()))
+        var h = max(2, Int((h0 * scale).rounded()))
         w -= w % 2; h -= h % 2
-        let cs = CGColorSpace(name: CGColorSpace.sRGB)!
-        guard let ctx = CGContext(data: nil, width: w, height: h,
-                                  bitsPerComponent: 8, bytesPerRow: 0,
-                                  space: cs,
-                                  bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue) else { return nil }
-        ctx.interpolationQuality = .high
-        ctx.draw(cg0, in: CGRect(x: 0, y: 0, width: w, height: h))
-        guard let out = ctx.makeImage() else { return nil }
-        return (out, w, h)
+        let format = UIGraphicsImageRendererFormat.default()
+        format.scale = 1
+        format.opaque = true
+        let renderer = UIGraphicsImageRenderer(size: CGSize(width: w, height: h), format: format)
+        let drawn = renderer.image { _ in
+            image.draw(in: CGRect(x: 0, y: 0, width: w, height: h))
+        }
+        guard let out = drawn.cgImage else { return nil }
+        return (out, out.width, out.height)
     }
 
     /// 读单通道 CVPixelBuffer（深度/灰度/mask）为 FloatImage(1ch)。支持 Float32 / Float16 / UInt8。
@@ -84,16 +101,3 @@ enum ImageUtils {
     }
 }
 
-extension UIImage {
-    /// 返回方向为 .up 的同图（消除 EXIF 旋转）。
-    func normalizedUp() -> UIImage {
-        if imageOrientation == .up { return self }
-        let format = UIGraphicsImageRendererFormat.default()
-        format.scale = scale
-        format.opaque = false
-        let renderer = UIGraphicsImageRenderer(size: size, format: format)
-        return renderer.image { _ in
-            self.draw(in: CGRect(origin: .zero, size: size))
-        }
-    }
-}

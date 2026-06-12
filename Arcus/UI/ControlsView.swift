@@ -54,6 +54,12 @@ struct ControlsView: View {
                     .toggleStyle(.button)
                     .tint(.orange)
 
+                    Toggle(isOn: $model.params.frameBars) {
+                        Label("出框", systemImage: "rectangle.split.3x1").font(.caption)
+                    }
+                    .toggleStyle(.button)
+                    .tint(.mint)
+
                     Spacer()
                 }
                 .foregroundStyle(.white)

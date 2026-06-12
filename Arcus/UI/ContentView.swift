@@ -50,6 +50,7 @@ struct ContentView: View {
                 if let data = try? await newItem.loadTransferable(type: Data.self) {
                     model.processData(data)
                 }
+                pickerItem = nil   // 复位：PhotosPickerItem 按 asset 判等，不复位则重选同一张照片不触发 onChange
             }
         }
         .alert("出错了", isPresented: Binding(
