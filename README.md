@@ -170,7 +170,7 @@ $$d = \frac{W}{2\tan(FOV/2)} \cdot \frac{B}{Z}$$
 
 |  |  |
 | --- | --- |
-| Meta 在 Connect 2024 上演示了 [Hyperscape](https://www.meta.com/en-gb/blog/connect-2024-keynote-recap-quest-3s-llama-3-2-ai-wearables-mixed-reality/)：用 3DGS 将真实空间重建成可以走进去的照片级场景，再通过云端渲染串流到 Quest 3。到 2025 年，Meta 又开放了 Hyperscape Capture(Early Access)：用户只需要戴着头显扫描几分钟房间，云端经过数小时重建，就能把自己的客厅变成可分享的 VR 场景。  <br/>不过，它和 NeRF 时代的很多方案一样，仍然依赖多视角采集和逐场景重建。 | ![](assets/readme/lark-media-16.webp) |
+| Meta 在 Connect 2024 上演示了 [Hyperscape](https://www.meta.com/en-gb/blog/connect-2024-keynote-recap-quest-3s-llama-3-2-ai-wearables-mixed-reality/)：用 3DGS 将真实空间重建成可以走进去的照片级场景，再通过云端渲染串流到 Quest 3。到 2025 年，Meta 又开放了 Hyperscape Capture(Early Access)：用户只需要戴着头显扫描几分钟房间，云端经过数小时重建，就能把自己的客厅变成可分享的 VR 场景。  <br/>不过，它和 NeRF 时代的很多方案一样，仍然依赖多视角采集和逐场景重建。 | ![](assets/readme/lark-media-16.gif) |
 
 
 |  |  |
