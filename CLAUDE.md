@@ -28,8 +28,6 @@ There is no test target, no linter, no package manifest. "Validation" means it c
 
 Real-device-only behavior: gyro parallax and `VNGenerateForegroundInstanceMaskRequest` subject segmentation require ANE/GPU; the Simulator silently falls back to depth-threshold segmentation and has no gyro.
 
-Smoke-test launch hook (`ContentView.swift`): launch with env `AUTOSAMPLE=1` to auto-process the bundled sample image, and `DEBUGMODE=<n>` to land on a debug layer (`1` depth, `2` subject matte, `3` background, `4` reframe fillMask). Useful for headless device verification, e.g. `xcrun devicectl device process launch --environment-variables '{"AUTOSAMPLE":"1","DEBUGMODE":"2"}' …`.
-
 ## Performance — measure on Release/device, never Debug/Simulator
 
 The one-shot pipeline is **per-pixel CPU numeric loops** (depth post-process, push-pull / PatchMatch fill, resampling). Under Debug (`-Onone`) these run **30–50× slower**, and `swift somefile.swift` runs fully unoptimized too. A 768×1024 image is ~0.3s in Release but can take 10+ seconds in Debug/Simulator — that is expected, not a regression. Always judge speed with a Release build on device. Timing is logged as `[Pipeline] 完成 WxH 用时 …s`.
@@ -89,7 +87,7 @@ The whole app is: a **one-shot CPU/Metal pipeline** that bakes GPU textures into
 
 ### Core (`Arcus/Core/`)
 
-`FloatImage` is the CPU pixel buffer the entire pipeline operates on — row-major `[Float]`, values ~0…1, `channels` 1 (depth/mask) or 3/4 (color), with `cropped`/`resized`/`dilated`/sampling helpers. `MetalContext` (shared device/queue/library), `TextureIO`, `ImageUtils`, `SampleImage`, `AuxDepthLoader`.
+`FloatImage` is the CPU pixel buffer the entire pipeline operates on — row-major `[Float]`, values ~0…1, `channels` 1 (depth/mask) or 3/4 (color), with `cropped`/`resized`/`dilated`/sampling helpers. `MetalContext` (shared device/queue/library), `TextureIO`, `ImageUtils`, `AuxDepthLoader`.
 
 ## Cross-file invariants (easy to break silently)
 

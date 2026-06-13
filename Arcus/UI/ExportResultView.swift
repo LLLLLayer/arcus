@@ -26,13 +26,13 @@ struct ExportResultView: View {
                     Button {
                         model.saveToAlbum(result)
                     } label: {
-                        Label("保存到相册", systemImage: "square.and.arrow.down")
+                        Label(AppText.saveToPhotos, systemImage: "square.and.arrow.down")
                             .frame(maxWidth: .infinity).padding(.vertical, 14)
                             .background(.tint, in: RoundedRectangle(cornerRadius: 12))
                             .foregroundStyle(.white)
                     }
                     ShareLink(item: result.url) {
-                        Label("分享文件", systemImage: "square.and.arrow.up")
+                        Label(AppText.Export.shareFile, systemImage: "square.and.arrow.up")
                             .frame(maxWidth: .infinity).padding(.vertical, 14)
                             .background(.white.opacity(0.10), in: RoundedRectangle(cornerRadius: 12))
                     }
@@ -44,7 +44,7 @@ struct ExportResultView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
-                    Button("完成") { dismiss() }
+                    Button(AppText.done) { dismiss() }
                 }
             }
         }
@@ -53,11 +53,11 @@ struct ExportResultView: View {
         .onDisappear { stopPlayer() }
     }
 
-    private var title: String { result.kind == .video ? "视差视频" : "空间照片" }
+    private var title: String { result.kind == .video ? AppText.Export.videoTitle : AppText.Export.spatialTitle }
     private var subtitle: String {
         result.kind == .video
-            ? "可保存到相册或分享。循环视差，适合社交分享。"
-            : "立体 HEIC，AirDrop 到 Apple Vision Pro 可作为空间照片查看。"
+            ? AppText.Export.videoSubtitle
+            : AppText.Export.spatialSubtitle
     }
 
     @ViewBuilder private var preview: some View {

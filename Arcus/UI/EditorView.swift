@@ -73,7 +73,7 @@ struct EditorView: View {
                         .padding(12).background(.ultraThinMaterial, in: Circle())
                 }
                 Spacer()
-                Text(reframeStage == .result ? "重拍 · 已补全" : "重拍 · 换个机位")
+                Text(reframeStage == .result ? AppText.Editor.reframeReady : AppText.Editor.reframePreview)
                     .font(.caption2).foregroundStyle(.white.opacity(0.85))
                     .padding(.horizontal, 12).padding(.vertical, 7)
                     .background(.ultraThinMaterial, in: Capsule())
@@ -87,12 +87,12 @@ struct EditorView: View {
             switch reframeStage {
             case .preview:
                 VStack(spacing: 12) {
-                    Text("单指拖动改变视角 · 双指缩放 · 双击复位")
+                    Text(AppText.Editor.reframeHint)
                         .font(.caption).foregroundStyle(.white.opacity(0.75))
                         .padding(.horizontal, 14).padding(.vertical, 8)
                         .background(.ultraThinMaterial, in: Capsule())
                     Button { generateReframe() } label: {
-                        Label("补全这一视角", systemImage: "sparkles")
+                        Label(AppText.Editor.fillThisView, systemImage: "sparkles")
                             .font(.headline).foregroundStyle(.white)
                             .padding(.horizontal, 22).padding(.vertical, 14)
                             .background(LinearGradient(colors: [.blue, .purple],
@@ -105,13 +105,13 @@ struct EditorView: View {
             case .result:
                 HStack(spacing: 12) {
                     Button { reframeStage = .preview; reframeResult = nil } label: {
-                        Label("重新调整", systemImage: "arrow.uturn.backward")
+                        Label(AppText.Editor.adjustAgain, systemImage: "arrow.uturn.backward")
                             .font(.subheadline.weight(.semibold)).foregroundStyle(.white)
                             .padding(.horizontal, 18).padding(.vertical, 13)
                             .background(.ultraThinMaterial, in: Capsule())
                     }
                     Button { saveReframeResult() } label: {
-                        Label("保存到相册", systemImage: "square.and.arrow.down")
+                        Label(AppText.saveToPhotos, systemImage: "square.and.arrow.down")
                             .font(.subheadline.weight(.semibold)).foregroundStyle(.white)
                             .padding(.horizontal, 18).padding(.vertical, 13)
                             .background(LinearGradient(colors: [.blue, .cyan],
@@ -138,7 +138,7 @@ struct EditorView: View {
             Color.black.opacity(0.5).ignoresSafeArea()
             VStack(spacing: 14) {
                 ProgressView().controlSize(.large).tint(.white)
-                Text("补全露出的区域…").font(.headline).foregroundStyle(.white)
+                Text(AppText.Editor.filling).font(.headline).foregroundStyle(.white)
             }
             .padding(28).background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 20))
         }
@@ -180,9 +180,9 @@ struct EditorView: View {
                     .appendingPathComponent("Arcus-Reframe-\(UInt32.random(in: 0...UInt32.max)).jpg")
                 try data.write(to: url)
                 try await MediaSaver.saveImage(url)
-                model.toast = "已保存到相册"
+                model.toast = AppText.Export.saved
             } catch {
-                model.errorMessage = "保存到相册失败：\(error.localizedDescription)"
+                model.errorMessage = AppText.Error.saveFailed(error.localizedDescription)
             }
         }
     }
@@ -220,7 +220,7 @@ struct EditorView: View {
     }
 
     private var hintBar: some View {
-        Text("倾斜手机 · 拖动画面 · 双击复位")
+        Text(AppText.Editor.viewerHint)
             .font(.caption)
             .foregroundStyle(.white.opacity(0.7))
             .padding(.horizontal, 14).padding(.vertical, 8)
@@ -239,7 +239,7 @@ struct EditorView: View {
                 Button {
                     model.cancelExport()
                 } label: {
-                    Text("取消")
+                    Text(AppText.cancel)
                         .font(.subheadline.weight(.semibold))
                         .foregroundStyle(.white.opacity(0.85))
                         .padding(.horizontal, 24).padding(.vertical, 9)

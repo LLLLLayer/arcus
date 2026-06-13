@@ -9,7 +9,7 @@ struct ControlsView: View {
     var body: some View {
         VStack(spacing: 14) {
             HStack {
-                Text("3D 照片")
+                Text(AppText.Controls.title)
                     .font(.subheadline.weight(.semibold))
                     .foregroundStyle(.white)
                 Spacer()
@@ -23,39 +23,39 @@ struct ControlsView: View {
             }
 
             if expanded {
-                Picker("查看", selection: $model.params.debugMode) {
-                    Text("正常").tag(Int32(0))
-                    Text("深度").tag(Int32(1))
-                    Text("主体").tag(Int32(2))
-                    Text("背景").tag(Int32(3))
+                Picker(AppText.Controls.view, selection: $model.params.debugMode) {
+                    Text(AppText.Controls.normal).tag(Int32(0))
+                    Text(AppText.Controls.depth).tag(Int32(1))
+                    Text(AppText.Controls.subject).tag(Int32(2))
+                    Text(AppText.Controls.background).tag(Int32(3))
                 }
                 .pickerStyle(.segmented)
 
-                slider(title: "3D 强度", value: $model.params.parallaxAmp, range: 0.02...0.13)
-                slider(title: "背景视差", value: $model.params.bgParallaxFactor, range: 0.0...0.8)
-                slider(title: "前景放大", value: $model.params.fgScale, range: 1.0...1.25)
+                slider(title: AppText.Controls.strength, value: $model.params.parallaxAmp, range: 0.02...0.13)
+                slider(title: AppText.Controls.backgroundParallax, value: $model.params.bgParallaxFactor, range: 0.0...0.8)
+                slider(title: AppText.Controls.foregroundScale, value: $model.params.fgScale, range: 1.0...1.25)
 
                 HStack(spacing: 12) {
                     Toggle(isOn: $model.params.motionEnabled) {
-                        Label("陀螺仪", systemImage: "gyroscope").font(.caption)
+                        Label(AppText.Controls.gyro, systemImage: "gyroscope").font(.caption)
                     }
                     .toggleStyle(.button)
                     .tint(.cyan)
 
                     Toggle(isOn: $model.params.autoAnimate) {
-                        Label("自动旋转", systemImage: "arrow.triangle.2.circlepath").font(.caption)
+                        Label(AppText.Controls.autoRotate, systemImage: "arrow.triangle.2.circlepath").font(.caption)
                     }
                     .toggleStyle(.button)
                     .tint(.purple)
 
                     Toggle(isOn: $model.params.multiLayerBg) {
-                        Label("背景分层", systemImage: "square.3.layers.3d").font(.caption)
+                        Label(AppText.Controls.layeredBackground, systemImage: "square.3.layers.3d").font(.caption)
                     }
                     .toggleStyle(.button)
                     .tint(.orange)
 
                     Toggle(isOn: $model.params.frameBars) {
-                        Label("出框", systemImage: "rectangle.split.3x1").font(.caption)
+                        Label(AppText.Controls.framePopOut, systemImage: "rectangle.split.3x1").font(.caption)
                     }
                     .toggleStyle(.button)
                     .tint(.mint)
@@ -65,10 +65,10 @@ struct ControlsView: View {
                 .foregroundStyle(.white)
 
                 HStack(spacing: 12) {
-                    actionButton(title: "导出视频", icon: "film", colors: [.blue, .cyan]) {
+                    actionButton(title: AppText.Controls.exportVideo, icon: "film", colors: [.blue, .cyan]) {
                         model.exportVideo()
                     }
-                    actionButton(title: "空间照片", icon: "view.3d", colors: [.purple, .pink]) {
+                    actionButton(title: AppText.Controls.spatialPhoto, icon: "view.3d", colors: [.purple, .pink]) {
                         model.exportSpatial()
                     }
                     PhotosPicker(selection: $pickerItem, matching: .images, photoLibrary: .shared()) {

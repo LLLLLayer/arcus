@@ -29,21 +29,6 @@ struct ContentView: View {
         }
         .animation(.easeInOut(duration: 0.3), value: model.stage)
         .animation(.easeInOut(duration: 0.2), value: model.toast)
-        .onAppear {
-            // 测试钩子：以 AUTOSAMPLE=1 启动时自动处理示例图，便于冒烟测试。
-            let env = ProcessInfo.processInfo.environment
-            if env["AUTOSAMPLE"] == "1", model.stage == .idle {
-                if let dm = env["DEBUGMODE"], let v = Int32(dm) { model.params.debugMode = v }
-                if env["AUTOANIM"] == "1" { model.params.autoAnimate = true }
-                switch env["FILLMODE"] {                       // 冒烟测试用：指定补全模式
-                case "migan": model.fillMode = .migan
-                case "patchMatch": model.fillMode = .patchMatch
-                case "fast": model.fillMode = .fast
-                default: break
-                }
-                model.processSample()
-            }
-        }
         .onChange(of: pickerItem) { _, newItem in
             guard let newItem else { return }
             Task {
@@ -53,10 +38,10 @@ struct ContentView: View {
                 pickerItem = nil   // 复位：PhotosPickerItem 按 asset 判等，不复位则重选同一张照片不触发 onChange
             }
         }
-        .alert("出错了", isPresented: Binding(
+        .alert(AppText.Error.title, isPresented: Binding(
             get: { model.errorMessage != nil },
             set: { if !$0 { model.errorMessage = nil } })) {
-            Button("好", role: .cancel) {}
+            Button(AppText.ok, role: .cancel) {}
         } message: {
             Text(model.errorMessage ?? "")
         }
@@ -66,9 +51,9 @@ struct ContentView: View {
     }
 
     private var backgroundGradient: LinearGradient {
-        LinearGradient(colors: [Color(red: 0.05, green: 0.06, blue: 0.12),
-                                Color(red: 0.10, green: 0.08, blue: 0.18),
-                                Color.black],
+        LinearGradient(colors: [Color(red: 0.05, green: 0.055, blue: 0.06),
+                                Color(red: 0.08, green: 0.11, blue: 0.12),
+                                Color(red: 0.02, green: 0.025, blue: 0.03)],
                        startPoint: .top, endPoint: .bottom)
     }
 }
@@ -80,74 +65,140 @@ private struct IdleView: View {
     @Binding var pickerItem: PhotosPickerItem?
 
     var body: some View {
-        VStack(spacing: 28) {
-            Spacer()
-            VStack(spacing: 14) {
-                Image(systemName: "cube.transparent.fill")
-                    .font(.system(size: 72))
-                    .foregroundStyle(
-                        LinearGradient(colors: [.cyan, .purple], startPoint: .topLeading, endPoint: .bottomTrailing))
-                Text("Arcus")
-                    .font(.system(size: 40, weight: .heavy, design: .rounded))
-                    .foregroundStyle(.white)
-                Text("把一张照片变成可交互的 3D 照片\n端侧 · 深度分层 · 背景补全")
-                    .multilineTextAlignment(.center)
-                    .font(.callout)
-                    .foregroundStyle(.white.opacity(0.6))
-            }
-
-            Spacer()
-
-            VStack(spacing: 14) {
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("背景补全").font(.subheadline.weight(.semibold)).foregroundStyle(.white)
-                    Picker("背景补全", selection: $model.fillMode) {
-                        ForEach(FillMode.allCases) { mode in
-                            Text(mode.title).tag(mode)
-                        }
-                    }
-                    .pickerStyle(.segmented)
-                    Text(model.fillMode.detail)
-                        .font(.caption2).foregroundStyle(.white.opacity(0.55))
-                }
-                .padding(14)
-                .background(.white.opacity(0.06), in: RoundedRectangle(cornerRadius: 14))
+        ScrollView {
+            VStack(alignment: .leading, spacing: 24) {
+                header
+                    .padding(.top, 34)
 
                 PhotosPicker(selection: $pickerItem, matching: .images, photoLibrary: .shared()) {
-                    Label("选择照片", systemImage: "photo.on.rectangle.angled")
-                        .font(.headline)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 16)
-                        .background(
-                            LinearGradient(colors: [.blue, .purple], startPoint: .leading, endPoint: .trailing),
-                            in: RoundedRectangle(cornerRadius: 16))
-                        .foregroundStyle(.white)
+                    HStack(spacing: 14) {
+                        Image(systemName: "photo.on.rectangle.angled")
+                            .font(.title3.weight(.semibold))
+                            .frame(width: 42, height: 42)
+                            .background(.white.opacity(0.13), in: RoundedRectangle(cornerRadius: 10))
+                        VStack(alignment: .leading, spacing: 3) {
+                            Text(AppText.Home.choosePhoto)
+                                .font(.headline)
+                            Text(AppText.Home.subtitle)
+                                .font(.caption)
+                                .lineLimit(2)
+                                .foregroundStyle(.white.opacity(0.68))
+                        }
+                        Spacer()
+                        Image(systemName: "chevron.right")
+                            .font(.footnote.weight(.bold))
+                            .foregroundStyle(.white.opacity(0.65))
+                    }
+                    .foregroundStyle(.white)
+                    .padding(16)
+                    .background(
+                        LinearGradient(colors: [Color(red: 0.0, green: 0.48, blue: 0.72),
+                                                Color(red: 0.55, green: 0.28, blue: 0.84)],
+                                       startPoint: .topLeading, endPoint: .bottomTrailing),
+                        in: RoundedRectangle(cornerRadius: 18)
+                    )
                 }
 
-                Button {
-                    model.processSample()
-                } label: {
-                    Label("使用示例图", systemImage: "wand.and.stars")
-                        .font(.headline)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 16)
-                        .background(.white.opacity(0.08), in: RoundedRectangle(cornerRadius: 16))
-                        .foregroundStyle(.white)
+                fillModePanel
+
+                HStack(spacing: 10) {
+                    metric(AppText.Home.depth, "waveform.path.ecg")
+                    metric(AppText.Home.subject, "person.crop.rectangle")
+                    metric(AppText.Home.fill, "sparkles")
+                    metric(AppText.Home.render, "display")
+                }
+
+                if !model.depthModelAvailable {
+                    Label(AppText.Home.depthWarning, systemImage: "exclamationmark.triangle.fill")
+                        .font(.caption)
+                        .foregroundStyle(.yellow.opacity(0.88))
+                        .fixedSize(horizontal: false, vertical: true)
+                        .padding(14)
+                        .background(.yellow.opacity(0.10), in: RoundedRectangle(cornerRadius: 14))
                 }
             }
-            .padding(.horizontal, 28)
-
-            if !model.depthModelAvailable {
-                Label("未检测到 Core ML 深度模型，将用伪深度兜底。运行 scripts/download_models.sh 获取最佳效果。",
-                      systemImage: "exclamationmark.triangle.fill")
-                    .font(.caption2)
-                    .foregroundStyle(.yellow.opacity(0.85))
-                    .multilineTextAlignment(.center)
-                    .padding(.horizontal, 28)
-            }
-            Spacer().frame(height: 12)
+            .padding(.horizontal, 22)
+            .padding(.bottom, 26)
+            .frame(maxWidth: 520)
+            .frame(maxWidth: .infinity)
         }
-        .padding(.bottom, 24)
+    }
+
+    private var header: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            HStack(spacing: 8) {
+                Image(systemName: "cube.transparent")
+                    .font(.footnote.weight(.semibold))
+                Text(AppText.Home.eyebrow)
+                    .font(.caption.weight(.semibold))
+                Spacer()
+                Text(AppText.Home.local)
+                    .font(.caption2.weight(.bold))
+                    .padding(.horizontal, 9)
+                    .padding(.vertical, 5)
+                    .background(.white.opacity(0.10), in: Capsule())
+            }
+            .foregroundStyle(.white.opacity(0.72))
+
+            VStack(alignment: .leading, spacing: 8) {
+                Text("Arcus")
+                    .font(.system(size: 52, weight: .black, design: .rounded))
+                    .foregroundStyle(.white)
+                Text(AppText.Home.title)
+                    .font(.title3.weight(.semibold))
+                    .foregroundStyle(.white.opacity(0.78))
+            }
+        }
+    }
+
+    private var fillModePanel: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(AppText.Home.fillTitle)
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(.white)
+                    Text(AppText.Home.fillSubtitle)
+                        .font(.caption)
+                        .foregroundStyle(.white.opacity(0.56))
+                }
+                Spacer()
+            }
+
+            Picker(AppText.Home.fillTitle, selection: $model.fillMode) {
+                ForEach(FillMode.allCases) { mode in
+                    Text(mode.title).tag(mode)
+                }
+            }
+            .pickerStyle(.segmented)
+
+            Text(model.fillMode.detail)
+                .font(.caption2)
+                .foregroundStyle(.white.opacity(0.56))
+        }
+        .padding(16)
+        .background(.white.opacity(0.07), in: RoundedRectangle(cornerRadius: 18))
+        .overlay(
+            RoundedRectangle(cornerRadius: 18)
+                .stroke(.white.opacity(0.08), lineWidth: 1)
+        )
+    }
+
+    private func metric(_ title: String, _ icon: String) -> some View {
+        VStack(spacing: 8) {
+            Image(systemName: icon)
+                .font(.subheadline.weight(.semibold))
+                .frame(width: 32, height: 32)
+                .background(.white.opacity(0.08), in: RoundedRectangle(cornerRadius: 8))
+            Text(title)
+                .font(.caption2.weight(.medium))
+                .lineLimit(1)
+                .minimumScaleFactor(0.75)
+        }
+        .foregroundStyle(.white.opacity(0.82))
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 12)
+        .background(.white.opacity(0.055), in: RoundedRectangle(cornerRadius: 14))
     }
 }
 

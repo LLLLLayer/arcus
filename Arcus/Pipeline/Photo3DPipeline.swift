@@ -12,14 +12,10 @@ enum FillMode: String, CaseIterable, Identifiable, Sendable {
 
     var id: String { rawValue }
     var title: String {
-        switch self { case .fast: return "快速"; case .patchMatch: return "PatchMatch"; case .migan: return "AI 补全" }
+        AppText.fillModeTitle(self)
     }
     var detail: String {
-        switch self {
-        case .fast: return "竖直延续 · 深度门控 · 实时"
-        case .patchMatch: return "内容感知 · 更连贯 · 较慢（约十几秒）"
-        case .migan: return "MI-GAN 神经生成 · 端侧 · 处理较慢"
-        }
+        AppText.fillModeDetail(self)
     }
     var source: String {
         switch self { case .fast: return "vertical+depth"; case .patchMatch: return "PatchMatch+depth"; case .migan: return "MI-GAN" }
@@ -58,7 +54,7 @@ final class Photo3DPipeline {
                  progress: @escaping (Double, String) -> Void) throws -> Photo3DScene {
 
         let t0 = CFAbsoluteTimeGetCurrent()
-        progress(0.05, "预处理图像…")
+        progress(0.05, AppText.Processing.preprocess)
         guard let work = ImageUtils.workingImage(from: image, maxSide: options.maxWorkingSide) else {
             throw PipelineError.badImage
         }
@@ -67,12 +63,12 @@ final class Photo3DPipeline {
 
         // 取消检查放在各阶段边界：用户取消后尽快退出（PatchMatch/MI-GAN 模式整条管线 10s+）。
         try Task.checkCancellation()
-        progress(0.20, "估计深度…")
+        progress(0.20, AppText.Processing.depth)
         let depthResult = depthEstimator.estimate(cgImage: cg, width: W, height: H, avDepth: avDepth)
         var disparity = depthResult.disparity
 
         try Task.checkCancellation()
-        progress(0.45, "分割主体…")
+        progress(0.45, AppText.Processing.segment)
         let segResult = segmenter.segment(cgImage: cg, width: W, height: H)
 
         // 主体 mask：系统分割优先；否则用深度近场阈值近似。
@@ -109,7 +105,7 @@ final class Photo3DPipeline {
         disparity = disparity.median3()
 
         try Task.checkCancellation()
-        progress(0.62, "补全主体背后的背景…")
+        progress(0.62, AppText.Processing.fillBackground)
 
         let longSide = Float(max(W, H))
 
@@ -132,7 +128,7 @@ final class Photo3DPipeline {
         let inpaintSource: String
         switch options.fillMode {
         case .migan:
-            progress(0.62, "AI 补全背景（MI-GAN，端侧生成）…")
+            progress(0.62, AppText.Processing.miganFill)
             // 把洞(主体)小幅外扩再喂给 MI-GAN，确保人被完全盖住——否则模型看到边缘的人像残片(发丝/衣角)
             // 会把人「续」进可见带里。外扩环带在静止时被前景遮住、动起来正是要生成的带，故只赚不亏。
             let migHole = subj.dilated(radius: max(6, W / 100))
@@ -144,7 +140,7 @@ final class Photo3DPipeline {
                 inpaintSource = "PatchMatch+depth(MI-GAN 不可用)"
             }
         case .patchMatch:
-            progress(0.62, "高质量补全背景（PatchMatch · 深度感知，较慢）…")
+            progress(0.62, AppText.Processing.patchMatchFill)
             bgColorImg = DisocclusionInpainter.patchMatchFill(rgbColor, valid: validFull, disparity: disparity)
             inpaintSource = "PatchMatch+depth"
         case .fast:
@@ -177,7 +173,7 @@ final class Photo3DPipeline {
         }
 
         try Task.checkCancellation()
-        progress(0.85, "烘焙 3D 网格…")
+        progress(0.85, AppText.Processing.baking)
 
         // 前景几何深度——关键：
         // (1) 主体内部「带掩膜强平滑」：Depth Anything 在发丝/边缘处深度噪声极大，
@@ -342,7 +338,7 @@ final class Photo3DPipeline {
         NSLog("[Pipeline] 完成 %dx%d 用时 %.2fs (深度:%@ 主体:%@ 补全:%@ 三角 前景:%d/背景:%d)", W, H,
               CFAbsoluteTimeGetCurrent() - t0, depthResult.source.rawValue, segSource, inpaintSource,
               mesh.fgIndexCount / 3, mesh.bgIndexCount / 3)
-        progress(1.0, "完成")
+        progress(1.0, AppText.Processing.complete)
         return Photo3DScene(
             width: W, height: H,
             fgColor: fgColorTex, depth: depthTex,
