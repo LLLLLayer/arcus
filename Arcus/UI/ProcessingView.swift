@@ -24,14 +24,14 @@ struct ProcessingView: View {
             Text(model.progressMessage)
                 .font(.headline)
                 .foregroundStyle(.white.opacity(0.85))
-            Text("端侧处理中 · 深度 → 分割 → 背景补全 → 烘焙")
+            Text(AppText.Processing.summary)
                 .font(.caption)
                 .foregroundStyle(.white.opacity(0.4))
 
             Button {
                 model.cancelProcessing()
             } label: {
-                Text("取消")
+                Text(AppText.cancel)
                     .font(.subheadline.weight(.semibold))
                     .foregroundStyle(.white.opacity(0.85))
                     .padding(.horizontal, 26).padding(.vertical, 10)
