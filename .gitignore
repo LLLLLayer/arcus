@@ -36,6 +36,9 @@ Arcus/Resources/*.mlmodel
 *.log
 .env
 
+# External research checkouts (documented in research/README.md)
+research/OpenReshot/
+
 # Docs (internal notes/research; kept local, not committed going forward)
 docs/
 

@@ -20,7 +20,7 @@ struct MeshUniforms {
 struct ViewerParams {
     var parallaxAmp: Float = 0.04        // 3D 强度
     var bgParallaxFactor: Float = 0.5    // 背景跟随（陀螺转动时背景也明显移动，像 Apple 空间照片；多层背景给近/远不同位移=内部视差）
-    var debugMode: Int32 = 0             // 0 正常,1 深度,2 主体,3 背景
+    var debugMode: Int32 = 0             // 0 正常,1 深度,2 主体,3 背景,4 重拍洞掩膜
     var motionEnabled: Bool = true
     var autoAnimate: Bool = false
     var multiLayerBg: Bool = true        // 背景再分层（近景背景中间层 + 远景背景打底）：默认开启

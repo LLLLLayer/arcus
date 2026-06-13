@@ -5,18 +5,18 @@
 
 |  |  |
 | --- | --- |
-| ![](assets/readme/lark-media-01.gif) | ![image.png](assets/readme/lark-media-02.png) |
+| ![Spatial Reframing 演示](assets/readme/spatial-reframing-demo.gif) | ![Apple Newsroom Spatial Reframing](assets/readme/spatial-reframing-newsroom.png) |
 
 
 Users can improve the composition of a photo after it's been taken.([Apple Newsroom](https://www.apple.com/newsroom/2026/06/apple-intelligence-brings-powerful-ai-capabilities-into-everyday-experiences/)、[AppleInsider](https://appleinsider.com/articles/26/06/08/spatial-reframing-will-fix-your-bad-iphone-photos-with-ios-27))
 
 头部玩家在两年内相继入场，这背后是三项能力趋于成熟：
 
-1. **单目深度估计沉淀为基础模型**：无需双摄或激光雷达，仅凭一张普通照片推断每个像素的远近；过去这类模型更像“专用工具”，换个场景就容易失准；2024 年前后，香港大学与字节跳动的 [**Depth Anything V2**](https://arxiv.org/abs/2406.09414) **的** 25M 参数的 Small 版即能在手机上毫秒级出图；同期 ETH 的 [**Marigold**](https://marigoldmonodepth.github.io/) 把 Stable Diffusion 里已经学到的视觉世界知识迁移出来做深度估计。深度估计开始变成大视觉模型里可以复用的通用能力；
+1. **单目深度估计沉淀为基础模型**：无需双摄或激光雷达，仅凭一张普通照片推断每个像素的远近；过去这类模型更像“专用工具”，换个场景就容易失准；2024 年前后，香港大学与字节跳动的 [**Depth Anything V2**](https://arxiv.org/abs/2406.09414) 25M 参数的 Small 版即能在手机上毫秒级出图；同期 ETH 的 [**Marigold**](https://marigoldmonodepth.github.io/) 把 Stable Diffusion 里已经学到的视觉世界知识迁移出来做深度估计。深度估计开始变成大视觉模型里可以复用的通用能力；
 2. **3D 表示演化出端侧可实时运行的形态**：有了深度之后，还要把一张平面照片重新组织成“可换视角”的三维结构(分层、神经场、高斯泼溅等)；Facebook 的 [**One Shot 3D Photography**](https://arxiv.org/abs/2008.12298) 以“单目深度网络 + LDI 分层 + 遮挡区域补全”把一张普通照片直接在手机端处理成 3D Photo，几秒内就能预览和分享；从 [**3D Gaussian Splatting**](https://repo-sam.inria.fr/fungraph/3d-gaussian-splatting/) 至 [**Apple SHARP**](https://apple.github.io/ml-sharp/) 已经可以从单张照片一次前馈生成 3D Gaussian 表示，并在普通 GPU 上一秒内完成；
 3. **移动端与头显的 NPU 算力开始溢出**：NPU 是手机和头显芯片里专门加速神经网络的单元。过去这类 2D 转 3D 任务要么依赖云端，要么只能离线慢慢处理；现在端侧 NPU 的算力已经足够支撑深度估计、图像补全和实时预览。苹果芯片内置的 ANE(Apple Neural Engine)承载 iPhone 上的 [iOS 26 空间场景](https://www.apple.com/newsroom/2025/06/apple-elevates-the-iphone-experience-with-ios-26/)，三星 Galaxy XR 所用的高通 [Snapdragon XR2+ Gen 2](https://www.qualcomm.com/products/mobile/snapdragon/xr-vr-ar/snapdragon-xr2-plus-gen-2-platform)(含 Hexagon NPU)支撑头显端实时转换，XReal 则以 [自研 X1 芯片](https://www.gizmochina.com/2025/12/02/xreal-1s-is-the-worlds-first-ar-glasses-with-automatic-2d-to-3d-video-conversion/) 驱动眼镜端的实时视频 2D 转 3D。
 
-![](assets/readme/lark-whiteboard-01.jpg)
+![](assets/readme/timeline-industry-2d-to-3d.jpg)
 
 接下来，我们来看看一张普通照片是怎样被重新组织成可互动、可重构的新形态的。
 
@@ -32,7 +32,7 @@ Users can improve the composition of a photo after it's been taken.([Apple Newsr
 
 > 随机点魔眼图是“立体感来自视差”的直接证据。图中没有轮廓、明暗和透视，只有随机噪点；但左右眼看到的点阵存在细微错位，大脑会把这种错位解释成深度，平行眼观看时便会浮现一只 3D 鲨鱼：
 >
-> ![](assets/readme/lark-media-03.png)
+> ![](assets/readme/random-dot-shark-stereogram.png)
 >
 > 随机点魔眼图([Wikimedia Commons](https://commons.wikimedia.org/wiki/File:Stereogram_Tut_Random_Dot_Shark.png))
 
@@ -70,7 +70,7 @@ $$d = \frac{W}{2\tan(FOV/2)} \cdot \frac{B}{Z}$$
 
 |  |  |
 | --- | --- |
-| ![](assets/readme/lark-media-04.png) | ![](assets/readme/lark-media-05.png) |
+| ![](assets/readme/mobile-motion-parallax.png) | ![](assets/readme/headset-stereo-display.png) |
 
 
 载体格式也随显示方式发生分化：
@@ -78,19 +78,19 @@ $$d = \frac{W}{2\tan(FOV/2)} \cdot \frac{B}{Z}$$
 1. [**空间照片**](https://developer.apple.com/videos/play/wwdc2024/10166/)：本质是一组左右眼图像，也就是一个“立体对”。苹果会把这组图像封装进一个 [HEIC](https://support.apple.com/en-us/116944) 文件中。HEIC 是苹果常用的高效图片格式，基于 HEVC 编码，一个 `.heic` 文件里可以容纳多张图像；空间照片还会额外写入空间元数据，比如基线、视场角和视差调整参数。苹果在 [WWDC24](https://developer.apple.com/videos/play/wwdc2024/10166/) 中就是按这套方式定义空间照片的。
 2. **空间视频**：通常使用 [MV-HEVC](https://developer.apple.com/videos/play/wwdc2023/10071/)，也就是 Multi-View HEVC，HEVC/H.265 的多视图扩展。它会把左右眼两路画面编码进同一个视频文件里：普通 2D 播放器只读取基础视图，仍然能当普通视频播放；支持 3D 的设备则读取额外的视差信息或另一视图，还原出双目画面。
 
-![](assets/readme/lark-whiteboard-02.jpg)
+![](assets/readme/spatial-media-formats.jpg)
 
 从 iPhone 15 Pro / 15 Pro Max 开始，苹果可以利用主摄和超广角两颗镜头直接拍摄空间视频，相当于在拍摄阶段就获得左右眼两路画面，属于“双目直拍”。但这次分享关注的“单目转换”，与此目标不同。
 
 
 |  |  |
 | --- | --- |
-| ![](assets/readme/lark-media-06.png) | ![](assets/readme/lark-media-07.png) |
+| ![](assets/readme/iphone-spatial-video-capture.png) | ![](assets/readme/iphone-dual-camera-spatial-video.png) |
 
 
 # 表示 3D 的方式
 
-![](assets/readme/lark-whiteboard-03.jpg)
+![](assets/readme/timeline-3d-representations.jpg)
 
 ## LDI、MPI(1998–2022)
 
@@ -104,7 +104,7 @@ $$d = \frac{W}{2\tan(FOV/2)} \cdot \frac{B}{Z}$$
 
 |  |  |
 | --- | --- |
-| ![](assets/readme/lark-media-08.png)<br/>LDI：左侧  LDI Camera 沿每条视线穿过物体、记录命中的多层像素(Layer 1–4)，右侧即这些像素按深度堆成的 Layered Depth Image([Shade et al., SIGGRAPH'98](https://szeliski.org/papers/Shade_LayeredDepthImages_SG98.pdf)) | ![](assets/readme/lark-media-09.png)<br/>MPI：一摞带透明度的 RGBA 平面；新视角 = 每层按透视变形后，由远及近半透明叠加。生成慢、渲染快。([Single-View MPI](https://single-view-mpi.github.io/)) |
+| ![](assets/readme/ldi-layered-depth-image.png)<br/>LDI：左侧  LDI Camera 沿每条视线穿过物体、记录命中的多层像素(Layer 1–4)，右侧即这些像素按深度堆成的 Layered Depth Image([Shade et al., SIGGRAPH'98](https://szeliski.org/papers/Shade_LayeredDepthImages_SG98.pdf)) | ![](assets/readme/mpi-multiplane-image.png)<br/>MPI：一摞带透明度的 RGBA 平面；新视角 = 每层按透视变形后，由远及近半透明叠加。生成慢、渲染快。([Single-View MPI](https://single-view-mpi.github.io/)) |
 
 
 分层的世界观：**3D 照片 ≈ 2.5D**。通俗地说，它有点像“纸片人剧场”：近景、中景、远景被拆成几块前后错开的布景板，观众左右晃头时，不同布景板移动的幅度不同，于是产生立体感。它只为“小幅度换视角”准备刚好够用的层。优点是可以一次性预计算好，用传统光栅化渲染，手机上很容易做到实时；但视角一旦拉得太大，就容易出现纹理拉伸、层间接缝和补洞穿帮。
@@ -116,12 +116,12 @@ $$d = \frac{W}{2\tan(FOV/2)} \cdot \frac{B}{Z}$$
 
 |  |  |
 | --- | --- |
-| ![](assets/readme/lark-media-10.gif)<br/>Camera 3D model courtesy of [Rick Reitano](https://poly.google.com/view/6RNCP1PTavR)([Google Research](https://research.google/blog/the-technology-behind-cinematic-photos/)) | ![image2.gif](assets/readme/lark-media-11.gif)<br/><br/>拉伸伪影可视化：相机一偏离正视角，深度断裂处被拉伸的多边形就会显形 |
+| ![](assets/readme/google-cinematic-photos-camera-motion.gif)<br/>Camera 3D model courtesy of [Rick Reitano](https://poly.google.com/view/6RNCP1PTavR)([Google Research](https://research.google/blog/the-technology-behind-cinematic-photos/)) | ![深度网格拉伸伪影](assets/readme/depth-mesh-stretch-artifact.gif)<br/><br/>拉伸伪影可视化：相机一偏离正视角，深度断裂处被拉伸的多边形就会显形 |
 
 
 这一代里最该单独点名的是 One Shot 3D Photography([Kopf et al., Meta，2020](https://arxiv.org/abs/2008.12298))，走的是 LDI 路线。它第一次把“单图变 3D 照片”的完整链路做成了手机端产品：先用轻量深度网络估出深度，再把照片转换成 LDI，补齐视差会露出的遮挡边缘，最后预计算成纹理图集和网格，交给手机 GPU 实时渲染。整件事几秒完成、全程离线，证明了单图 3D 照片不必依赖云端，也不必依赖双摄：
 
-![](assets/readme/lark-media-12.png)
+![](assets/readme/one-shot-3d-photography-pipeline.png)
 
 单图 → 深度 230ms → 分层 LDI 94ms + 遮挡补全 540 ms → 网格 234 ms → 新视角实时渲染
 
@@ -137,7 +137,7 @@ $$d = \frac{W}{2\tan(FOV/2)} \cdot \frac{B}{Z}$$
 
 这就是“辐射场”的含义：空间中的任意位置、任意观看方向，都可以被查询出颜色和密度。它的优势很明显：场景不再是几张离散纸片，而是一个连续的 3D 空间，所以新视角质量很高，细碎结构、透明感和随视角变化的光泽也更自然。它证明了，连续场可以用照片级质量表示真实 3D 场景。
 
-![](assets/readme/lark-media-13.gif)
+![](assets/readme/instant-ngp-demo.gif)
 
 [Instant-NGP](https://nvlabs.github.io/instant-ngp/) 证明可以靠哈希编码和 GPU 工程把训练压到分钟甚至秒级
 
@@ -160,7 +160,7 @@ $$d = \frac{W}{2\tan(FOV/2)} \cdot \frac{B}{Z}$$
 
 |  |  |
 | --- | --- |
-| ![](assets/readme/lark-media-14.gif) | ![](assets/readme/lark-media-15.gif) |
+| ![](assets/readme/3dgs-bicycle-demo.gif) | ![](assets/readme/3dgs-garden-demo.gif) |
 
 
 3DGS：把场景表示成大量半透明 3D 高斯，渲染时把它们投影成屏幕上的椭圆斑点并透明合成
@@ -170,12 +170,12 @@ $$d = \frac{W}{2\tan(FOV/2)} \cdot \frac{B}{Z}$$
 
 |  |  |
 | --- | --- |
-| Meta 在 Connect 2024 上演示了 [Hyperscape](https://www.meta.com/en-gb/blog/connect-2024-keynote-recap-quest-3s-llama-3-2-ai-wearables-mixed-reality/)：用 3DGS 将真实空间重建成可以走进去的照片级场景，再通过云端渲染串流到 Quest 3。到 2025 年，Meta 又开放了 Hyperscape Capture(Early Access)：用户只需要戴着头显扫描几分钟房间，云端经过数小时重建，就能把自己的客厅变成可分享的 VR 场景。  <br/>不过，它和 NeRF 时代的很多方案一样，仍然依赖多视角采集和逐场景重建。 | ![](assets/readme/lark-media-16.gif) |
+| Meta 在 Connect 2024 上演示了 [Hyperscape](https://www.meta.com/en-gb/blog/connect-2024-keynote-recap-quest-3s-llama-3-2-ai-wearables-mixed-reality/)：用 3DGS 将真实空间重建成可以走进去的照片级场景，再通过云端渲染串流到 Quest 3。到 2025 年，Meta 又开放了 Hyperscape Capture(Early Access)：用户只需要戴着头显扫描几分钟房间，云端经过数小时重建，就能把自己的客厅变成可分享的 VR 场景。  <br/>不过，它和 NeRF 时代的很多方案一样，仍然依赖多视角采集和逐场景重建。 | ![](assets/readme/meta-hyperscape-demo.gif) |
 
 
 |  |  |
 | --- | --- |
-| 影视飓风有一个[相关视频](https://www.bilibili.com/video/BV1k85NzMEv4/)，它展示的不是普通静态 3DGS，而是 **4D Gaussian Splatting / 4DGS**。3DGS 里的“3D”指三维空间，它重建的是某一时刻的静态场景，观众可以在这个空间里自由换角度看；4DGS 则在三维空间之外加入时间维度，场景里的人、物和光影会继续运动，观众既能自由换视角，也能看到动作随时间发生。换句话说，3DGS 让照片级空间可以被自由运镜，4DGS 则把这种能力推进到视频级时空，让“正在发生的画面”也可以被自由运镜。 | ![](assets/readme/lark-media-17.gif) |
+| 影视飓风有一个[相关视频](https://www.bilibili.com/video/BV1k85NzMEv4/)，它展示的不是普通静态 3DGS，而是 **4D Gaussian Splatting / 4DGS**。3DGS 里的“3D”指三维空间，它重建的是某一时刻的静态场景，观众可以在这个空间里自由换角度看；4DGS 则在三维空间之外加入时间维度，场景里的人、物和光影会继续运动，观众既能自由换视角，也能看到动作随时间发生。换句话说，3DGS 让照片级空间可以被自由运镜，4DGS 则把这种能力推进到视频级时空，让“正在发生的画面”也可以被自由运镜。 | ![](assets/readme/4dgs-free-viewpoint-demo.gif) |
 
 
 # 深度估计模型
@@ -189,12 +189,12 @@ $$d = \frac{W}{2\tan(FOV/2)} \cdot \frac{B}{Z}$$
 
 |  |  |
 | --- | --- |
-| ![](assets/readme/lark-media-18.png) | ![](assets/readme/lark-media-19.png) |
+| ![](assets/readme/midas-dpt-depth-comparison.png) | ![](assets/readme/depth-anything-v2-comparison.png) |
 
 
 再往后，深度估计开始从“单张图里的远近排序”，走向更完整的空间理解。[Depth Pro](https://arxiv.org/abs/2410.02073) 强调的是**米制深度**，也就是不只判断谁近谁远，而是尽量估出接近真实世界的距离。[VGGT](https://arxiv.org/abs/2503.11651) 和 [Depth Anything 3](https://depth-anything-3.github.io/) 则进一步把问题扩展到整体几何：不仅预测深度，还尝试一次性推断相机位置、画面中各点的 3D 坐标，以及这些点在多帧之间如何运动。也就是说，深度估计正在从一个前处理模块，变成更通用的几何理解能力。
 
-![](assets/readme/lark-media-20.gif)
+![](assets/readme/depth-anything-3-reconstruction.gif)
 
 Depth Anything 3 支持从单视角到多视角的任意视角数量，实现完整视觉空间重建
 
@@ -207,37 +207,37 @@ Depth Anything 3 支持从单视角到多视角的任意视角数量，实现完
 3. **遮挡补全：**前景让开后，背后原本被挡住的内容并不存在于照片里。如果不补，就会出现空洞或纹理拉伸。手机 3D 照片的视差通常不大，要补的是主体轮廓旁露出的一圈窄带，包括颜色、深度；
 4. **实时渲染：**前三步完成后，照片已经变成一份可交互资产。预览阶段，GPU 根据手势或陀螺仪重新投影这些图层或网格：近处移动多，远处移动少；主体边缘切开后，露出的就是补好的背景。
 
-回到标题“空间重构”，它把这条流程推到更大的视角变化下使用。机位挪得越大，被推出画面、被前景遮住后重新露出的区域就越多，因此更依赖补全能力。难点是是如何让补出的颜色和深度自然接回原场景。
+回到标题“空间重构”，它把这条流程推到更大的视角变化下使用。机位挪得越大，被推出画面、被前景遮住后重新露出的区域就越多，因此更依赖补全能力。难点是如何让补出的颜色和深度自然接回原场景。
 
 需要说明的是，Apple 目前并没有公开 Spatial Reframing 的具体实现细节。但从官方描述看，它解决的问题和一批公开研究高度一致：先从单张照片理解深度和空间结构，再根据用户拖动后的新机位生成新视角，最后只在新视角露出的缺失区域补内容。早期的 [3D Ken Burns Effect](https://arxiv.org/abs/1909.05483) 已经展示了“单图估深度、生成点云、移动虚拟相机、补齐露出区域”的完整链路；[3D Photo Inpainting](https://shihmengli.github.io/3D-Photo-Inpainting/) 则把问题进一步落到 LDI 分层和遮挡区域的颜色、深度补全；再往后，[Diffuse3D](https://github.com/yutaojiang1/Diffuse3D)、[Stable Virtual Camera](https://stable-virtual-camera.github.io/) 这类工作开始用扩散模型处理更大视角变化下的新视角生成。Spatial Reframing 可以看作这条研究路线在照片编辑产品里的落地。
 
 
 |  |  |  |
 | --- | --- | --- |
-| ![](assets/readme/lark-media-21.gif) | ![](assets/readme/lark-media-22.gif) | ![](assets/readme/lark-media-23.gif) |
+| ![](assets/readme/3d-photo-inpainting-family-00.gif) | ![](assets/readme/3d-photo-inpainting-family-01.gif) | ![](assets/readme/3d-photo-inpainting-historical.gif) |
 
 
 [3D Photography Using Context-Aware Layered Depth Inpainting](https://shihmengli.github.io/3D-Photo-Inpainting/)
 
 # 从语言到 Demo
 
- AI Coding 让“从想法到产品雏形”的距离变短了，去年我尝试做类似项目，花了一个月只有粗糙雏形；今天只靠自然语言描述目标、配合 AI 自动反馈效果，就能在很短时间里把深度估计、遮挡补全和 Metal 渲染串成一个可交互 Demo。这大概就是属于工程师的 Demo 平权时代。
+AI Coding 让“从想法到产品雏形”的距离变短了，去年我尝试做类似项目，花了一个月只有粗糙雏形；今天只靠自然语言描述目标、配合 AI 自动反馈效果，就能在很短时间里把深度估计、遮挡补全和 Metal 渲染串成一个可交互 Demo。这大概就是属于工程师的 Demo 平权时代。
 
 但 Coding 不只是为了得到一个结果，它本身也是理解问题的过程。就像 AI 可以替我们总结一本书，但亲自读一本书，你会在停顿、困惑、反驳和联想里形成自己的判断。写代码也是一样，AI 可以帮你更快跑通 Demo，但过程里暴露出来的取舍、错误和修正，才真正让你理解一个系统。
 
 我们需要保留这种亲自探索的能力，塑造自己的判断，此文即由此而来。
 
-以下是 **Arcus**([GitHub](https://github.com/LLLLLayer/arcus))，一个纯端侧 iOS 2D 转 3D 照片 Demo，技术路线接近 LDI；它先用 Depth Anything V2 Small 做单目深度估计，再用 Vision 前景分割拆出主体和背景，对遮挡区域用 MI-GAN / LaMa / PatchMatch 做补全，最后把前景、背景和深度做成可由 Metal 实时视差渲染的分层资产。最后也感谢模特蔡徐坤。
+以下是 **Arcus**([GitHub](https://github.com/LLLLLayer/arcus))，一个纯端侧 iOS 2D 转 3D 照片 Demo，技术路线接近 LDI；它先用 Depth Anything V2 Small 做单目深度估计，再用 Vision 前景分割拆出主体和背景，对遮挡区域用 MI-GAN / LaMa / PatchMatch 做补全，最后把前景、背景和深度做成可由 Metal 实时视差渲染的分层资产。
 
 
 |  |  |  |  |  |  |
 | --- | --- | --- | --- | --- | --- |
-| ![IMG_8722.JPG](assets/readme/lark-media-24.jpg)<br/>原图 | ![IMG_2076.PNG](assets/readme/lark-media-25.png)<br/>深度 | ![IMG_2077.PNG](assets/readme/lark-media-26.png)<br/>主体 | ![IMG_2078.PNG](assets/readme/lark-media-27.png)<br/>背景 | ![](assets/readme/lark-media-28.gif)<br/>空间照片 | ![](assets/readme/lark-media-29.gif)<br/>空间重构 |
+| ![Arcus 示例一原图](assets/readme/arcus-demo-1-source.jpg)<br/>原图 | ![Arcus 示例一深度图](assets/readme/arcus-demo-1-depth.png)<br/>深度 | ![Arcus 示例一主体分割](assets/readme/arcus-demo-1-subject.png)<br/>主体 | ![Arcus 示例一补全背景](assets/readme/arcus-demo-1-background.png)<br/>背景 | ![Arcus 示例一空间照片](assets/readme/arcus-demo-1-spatial-photo.gif)<br/>空间照片 | ![Arcus 示例一空间重构](assets/readme/arcus-demo-1-spatial-reframe.gif)<br/>空间重构 |
 
 
 |  |  |  |  |  |  |
 | --- | --- | --- | --- | --- | --- |
-| ![IMG_8723.JPG](assets/readme/lark-media-30.jpg)<br/>原图 | ![IMG_2079.PNG](assets/readme/lark-media-31.png)<br/>深度 | ![IMG_2080.PNG](assets/readme/lark-media-32.png)<br/>主体 | ![IMG_2081.PNG](assets/readme/lark-media-33.png)<br/>背景 | ![](assets/readme/lark-media-34.gif)<br/>空间照片 | ![](assets/readme/lark-media-35.gif)<br/>空间重构 |
+| ![Arcus 示例二原图](assets/readme/arcus-demo-2-source.jpg)<br/>原图 | ![Arcus 示例二深度图](assets/readme/arcus-demo-2-depth.png)<br/>深度 | ![Arcus 示例二主体分割](assets/readme/arcus-demo-2-subject.png)<br/>主体 | ![Arcus 示例二补全背景](assets/readme/arcus-demo-2-background.png)<br/>背景 | ![Arcus 示例二空间照片](assets/readme/arcus-demo-2-spatial-photo.gif)<br/>空间照片 | ![Arcus 示例二空间重构](assets/readme/arcus-demo-2-spatial-reframe.gif)<br/>空间重构 |
 
 
 # 参考资料

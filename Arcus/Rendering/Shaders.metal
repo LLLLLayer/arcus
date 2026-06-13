@@ -11,7 +11,7 @@ struct MeshUniforms {
     float  layerFactor;     // 28  warp 缩放：前景=1, 背景=bgParallaxFactor
     float  fgFlag;          // 32  1=前景(用 matte alpha), 0=背景(不透明)
     float  fgScale;         // 36  前景整体放大(支点=主体质心)；1=原尺寸，其它层恒为 1
-    int    debugMode;       // 40  0正常,1深度,2主体,3背景
+    int    debugMode;       // 40  0正常,1深度,2主体,3背景,4重拍洞掩膜
     float2 fgCenter;        // 48  主体质心(uv)，放大支点
 };
 
