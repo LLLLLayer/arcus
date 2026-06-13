@@ -5,7 +5,7 @@
 
 |  |  |
 | --- | --- |
-| <video src="assets/readme/lark-media-01.mp4" controls muted playsinline width="100%"></video> | ![image.png](assets/readme/lark-media-02.png) |
+| ![](assets/readme/lark-media-01.gif) | ![image.png](assets/readme/lark-media-02.png) |
 
 
 Users can improve the composition of a photo after it's been taken.([Apple Newsroom](https://www.apple.com/newsroom/2026/06/apple-intelligence-brings-powerful-ai-capabilities-into-everyday-experiences/)、[AppleInsider](https://appleinsider.com/articles/26/06/08/spatial-reframing-will-fix-your-bad-iphone-photos-with-ios-27))
@@ -116,7 +116,7 @@ $$d = \frac{W}{2\tan(FOV/2)} \cdot \frac{B}{Z}$$
 
 |  |  |
 | --- | --- |
-| <video src="assets/readme/lark-media-10.mp4" controls muted playsinline width="100%"></video><br/>Camera 3D model courtesy of [Rick Reitano](https://poly.google.com/view/6RNCP1PTavR)([Google Research](https://research.google/blog/the-technology-behind-cinematic-photos/)) | ![image2.gif](assets/readme/lark-media-11.gif)<br/><br/>拉伸伪影可视化：相机一偏离正视角，深度断裂处被拉伸的多边形就会显形 |
+| ![](assets/readme/lark-media-10.gif)<br/>Camera 3D model courtesy of [Rick Reitano](https://poly.google.com/view/6RNCP1PTavR)([Google Research](https://research.google/blog/the-technology-behind-cinematic-photos/)) | ![image2.gif](assets/readme/lark-media-11.gif)<br/><br/>拉伸伪影可视化：相机一偏离正视角，深度断裂处被拉伸的多边形就会显形 |
 
 
 这一代里最该单独点名的是 One Shot 3D Photography([Kopf et al., Meta，2020](https://arxiv.org/abs/2008.12298))，走的是 LDI 路线。它第一次把“单图变 3D 照片”的完整链路做成了手机端产品：先用轻量深度网络估出深度，再把照片转换成 LDI，补齐视差会露出的遮挡边缘，最后预计算成纹理图集和网格，交给手机 GPU 实时渲染。整件事几秒完成、全程离线，证明了单图 3D 照片不必依赖云端，也不必依赖双摄：
@@ -137,7 +137,7 @@ $$d = \frac{W}{2\tan(FOV/2)} \cdot \frac{B}{Z}$$
 
 这就是“辐射场”的含义：空间中的任意位置、任意观看方向，都可以被查询出颜色和密度。它的优势很明显：场景不再是几张离散纸片，而是一个连续的 3D 空间，所以新视角质量很高，细碎结构、透明感和随视角变化的光泽也更自然。它证明了，连续场可以用照片级质量表示真实 3D 场景。
 
-<video src="assets/readme/lark-media-13.mp4" controls muted playsinline width="100%"></video>
+![](assets/readme/lark-media-13.gif)
 
 [Instant-NGP](https://nvlabs.github.io/instant-ngp/) 证明可以靠哈希编码和 GPU 工程把训练压到分钟甚至秒级
 
@@ -160,7 +160,7 @@ $$d = \frac{W}{2\tan(FOV/2)} \cdot \frac{B}{Z}$$
 
 |  |  |
 | --- | --- |
-| <video src="assets/readme/lark-media-14.mp4" controls muted playsinline width="100%"></video> | <video src="assets/readme/lark-media-15.mp4" controls muted playsinline width="100%"></video> |
+| ![](assets/readme/lark-media-14.gif) | ![](assets/readme/lark-media-15.gif) |
 
 
 3DGS：把场景表示成大量半透明 3D 高斯，渲染时把它们投影成屏幕上的椭圆斑点并透明合成
@@ -170,7 +170,7 @@ $$d = \frac{W}{2\tan(FOV/2)} \cdot \frac{B}{Z}$$
 
 |  |  |
 | --- | --- |
-| Meta 在 Connect 2024 上演示了 [Hyperscape](https://www.meta.com/en-gb/blog/connect-2024-keynote-recap-quest-3s-llama-3-2-ai-wearables-mixed-reality/)：用 3DGS 将真实空间重建成可以走进去的照片级场景，再通过云端渲染串流到 Quest 3。到 2025 年，Meta 又开放了 Hyperscape Capture(Early Access)：用户只需要戴着头显扫描几分钟房间，云端经过数小时重建，就能把自己的客厅变成可分享的 VR 场景。  <br/>不过，它和 NeRF 时代的很多方案一样，仍然依赖多视角采集和逐场景重建。 | ![](assets/readme/lark-media-16.webp) |
+| Meta 在 Connect 2024 上演示了 [Hyperscape](https://www.meta.com/en-gb/blog/connect-2024-keynote-recap-quest-3s-llama-3-2-ai-wearables-mixed-reality/)：用 3DGS 将真实空间重建成可以走进去的照片级场景，再通过云端渲染串流到 Quest 3。到 2025 年，Meta 又开放了 Hyperscape Capture(Early Access)：用户只需要戴着头显扫描几分钟房间，云端经过数小时重建，就能把自己的客厅变成可分享的 VR 场景。  <br/>不过，它和 NeRF 时代的很多方案一样，仍然依赖多视角采集和逐场景重建。 | ![](assets/readme/lark-media-16.gif) |
 
 
 |  |  |
@@ -194,7 +194,7 @@ $$d = \frac{W}{2\tan(FOV/2)} \cdot \frac{B}{Z}$$
 
 再往后，深度估计开始从“单张图里的远近排序”，走向更完整的空间理解。[Depth Pro](https://arxiv.org/abs/2410.02073) 强调的是**米制深度**，也就是不只判断谁近谁远，而是尽量估出接近真实世界的距离。[VGGT](https://arxiv.org/abs/2503.11651) 和 [Depth Anything 3](https://depth-anything-3.github.io/) 则进一步把问题扩展到整体几何：不仅预测深度，还尝试一次性推断相机位置、画面中各点的 3D 坐标，以及这些点在多帧之间如何运动。也就是说，深度估计正在从一个前处理模块，变成更通用的几何理解能力。
 
-<video src="assets/readme/lark-media-20.mp4" controls muted playsinline width="100%"></video>
+![](assets/readme/lark-media-20.gif)
 
 Depth Anything 3 支持从单视角到多视角的任意视角数量，实现完整视觉空间重建
 
@@ -214,7 +214,7 @@ Depth Anything 3 支持从单视角到多视角的任意视角数量，实现完
 
 |  |  |  |
 | --- | --- | --- |
-| <video src="assets/readme/lark-media-21.mp4" controls muted playsinline width="100%"></video> | <video src="assets/readme/lark-media-22.mp4" controls muted playsinline width="100%"></video> | <video src="assets/readme/lark-media-23.mp4" controls muted playsinline width="100%"></video> |
+| ![](assets/readme/lark-media-21.gif) | ![](assets/readme/lark-media-22.gif) | ![](assets/readme/lark-media-23.gif) |
 
 
 [3D Photography Using Context-Aware Layered Depth Inpainting](https://shihmengli.github.io/3D-Photo-Inpainting/)
@@ -232,12 +232,12 @@ Depth Anything 3 支持从单视角到多视角的任意视角数量，实现完
 
 |  |  |  |  |  |  |
 | --- | --- | --- | --- | --- | --- |
-| ![IMG_8722.JPG](assets/readme/lark-media-24.jpg)<br/>原图 | ![IMG_2076.PNG](assets/readme/lark-media-25.png)<br/>深度 | ![IMG_2077.PNG](assets/readme/lark-media-26.png)<br/>主体 | ![IMG_2078.PNG](assets/readme/lark-media-27.png)<br/>背景 | <video src="assets/readme/lark-media-28.mp4" controls muted playsinline width="100%"></video><br/>空间照片 | <video src="assets/readme/lark-media-29.mp4" controls muted playsinline width="100%"></video><br/>空间重构 |
+| ![IMG_8722.JPG](assets/readme/lark-media-24.jpg)<br/>原图 | ![IMG_2076.PNG](assets/readme/lark-media-25.png)<br/>深度 | ![IMG_2077.PNG](assets/readme/lark-media-26.png)<br/>主体 | ![IMG_2078.PNG](assets/readme/lark-media-27.png)<br/>背景 | ![](assets/readme/lark-media-28.gif)<br/>空间照片 | ![](assets/readme/lark-media-29.gif)<br/>空间重构 |
 
 
 |  |  |  |  |  |  |
 | --- | --- | --- | --- | --- | --- |
-| ![IMG_8723.JPG](assets/readme/lark-media-30.jpg)<br/>原图 | ![IMG_2079.PNG](assets/readme/lark-media-31.png)<br/>深度 | ![IMG_2080.PNG](assets/readme/lark-media-32.png)<br/>主体 | ![IMG_2081.PNG](assets/readme/lark-media-33.png)<br/>背景 | <video src="assets/readme/lark-media-34.mp4" controls muted playsinline width="100%"></video><br/>空间照片 | <video src="assets/readme/lark-media-35.mp4" controls muted playsinline width="100%"></video><br/>空间重构 |
+| ![IMG_8723.JPG](assets/readme/lark-media-30.jpg)<br/>原图 | ![IMG_2079.PNG](assets/readme/lark-media-31.png)<br/>深度 | ![IMG_2080.PNG](assets/readme/lark-media-32.png)<br/>主体 | ![IMG_2081.PNG](assets/readme/lark-media-33.png)<br/>背景 | ![](assets/readme/lark-media-34.gif)<br/>空间照片 | ![](assets/readme/lark-media-35.gif)<br/>空间重构 |
 
 
 # 参考资料
