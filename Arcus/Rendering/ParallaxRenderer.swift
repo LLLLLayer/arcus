@@ -28,6 +28,11 @@ struct ViewerParams {
     var reframeMode: Bool = false        // 「重拍」入口：拖动=移机位(大范围、不回弹)，双指=缩放；默认 false ⇒ 普通查看完全不受影响
     var fitImage: Bool = true            // true=按原图比例完整展示(letterbox，不裁切)；false=cover 撑满裁切(重拍沉浸态用)
     var frameBars: Bool = false          // 「出框」：背景与前景之间夹一对屏幕空间静止白条，主体随视差跨到条前 ⇒ 裸眼 3D 出框感
+
+    // ===== 高斯泼溅「镜头」（仅 3DGS 渲染读取；LDI 忽略）=====
+    var gsDolly: Float = 0               // 推轨「前景前后移动」：-1 拉远…+1 推近（带 FOV 反向补偿=希区柯克变焦）
+    var gsFocus: Float = 0.5             // 对焦深度：0 近(主体)…1 远(背景)
+    var gsFNumber: Float = 16            // 光圈 f 值：1.4 浅景深大虚化…16 全清晰(景深关)
 }
 
 /// Metal 连续深度网格 warp 渲染器（2 层软 LDI，无深度缓冲——靠绘制顺序 + 剪影切口处理遮挡）：
@@ -107,7 +112,7 @@ final class ParallaxRenderer: NSObject, MTKViewDelegate {
             b.destinationAlphaBlendFactor = .oneMinusSourceAlpha
             barState = try ctx.device.makeRenderPipelineState(descriptor: d3)
         } catch {
-            fatalError("创建渲染管线失败：\(error)")
+            fatalError("Failed to create render pipeline: \(error)")
         }
     }
 

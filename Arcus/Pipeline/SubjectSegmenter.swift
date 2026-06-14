@@ -8,7 +8,7 @@ import CoreVideo
 ///        → nil（交由管线用深度阈值近似前景）。
 final class SubjectSegmenter {
 
-    enum Source: String { case foregroundInstance = "前景主体实例", person = "人物分割", none = "深度阈值近似" }
+    enum Source: String { case foregroundInstance = "Foreground subject instance", person = "Person segmentation", none = "Depth-threshold approximation" }
 
     struct Result {
         var mask: FloatImage    // 1ch, 0…1
@@ -38,7 +38,7 @@ final class SubjectSegmenter {
             guard let raw = ImageUtils.scalarFloats(from: maskPB) else { return nil }
             return raw.resized(to: width, to: height)
         } catch {
-            NSLog("[Segment] 前景实例 mask 不可用（模拟器/无主体）：\(error.localizedDescription)")
+            NSLog("[Segment] Foreground instance mask unavailable (simulator/no subject): \(error.localizedDescription)")
             return nil
         }
     }
@@ -59,7 +59,7 @@ final class SubjectSegmenter {
             guard mean > 0.005 else { return nil }
             return raw.resized(to: width, to: height)
         } catch {
-            NSLog("[Segment] 人物分割不可用：\(error.localizedDescription)")
+            NSLog("[Segment] Person segmentation unavailable: \(error.localizedDescription)")
             return nil
         }
     }

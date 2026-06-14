@@ -1,150 +1,29 @@
 import SwiftUI
 import AVFoundation
-import Foundation
-
-enum AppText {
-    private static var zh: Bool {
-        Locale.preferredLanguages.first?.lowercased().hasPrefix("zh") == true
-    }
-
-    static func text(_ zhText: String, _ enText: String) -> String {
-        zh ? zhText : enText
-    }
-
-    static let ok = text("好", "OK")
-    static let cancel = text("取消", "Cancel")
-    static let done = text("完成", "Done")
-    static let saveToPhotos = text("保存到相册", "Save to Photos")
-
-    enum Home {
-        static let eyebrow = text("端侧 2D 转 3D 照片", "On-device 2D to 3D photos")
-        static let title = text("空间照片工作台", "Spatial Photo Studio")
-        static let subtitle = text("选择一张照片，生成可交互的深度分层资产。", "Choose a photo and build an interactive layered-depth scene.")
-        static let choosePhoto = text("选择照片", "Choose Photo")
-        static let fillTitle = text("背景补全", "Background Fill")
-        static let fillSubtitle = text("决定主体移开后，背后缺失区域如何生成。", "Controls how missing regions behind the subject are filled.")
-        static let depthWarning = text(
-            "未检测到 Core ML 深度模型，将用伪深度兜底。运行 scripts/download_models.sh 获取最佳效果。",
-            "Core ML depth model not found. Arcus will fall back to pseudo depth. Run scripts/download_models.sh for best results."
-        )
-        static let depth = text("深度", "Depth")
-        static let subject = text("主体", "Subject")
-        static let fill = text("补全", "Fill")
-        static let render = text("渲染", "Render")
-        static let local = text("本地", "Local")
-    }
-
-    enum Error {
-        static let title = text("出错了", "Something went wrong")
-        static let unreadableImage = text("无法读取所选图片。", "Could not read the selected image.")
-        static func processingFailed(_ message: String) -> String {
-            text("处理失败：\(message)", "Processing failed: \(message)")
-        }
-        static func exportVideoFailed(_ message: String) -> String {
-            text("导出视频失败：\(message)", "Video export failed: \(message)")
-        }
-        static func exportSpatialFailed(_ message: String) -> String {
-            text("导出空间照片失败：\(message)", "Spatial photo export failed: \(message)")
-        }
-        static func saveFailed(_ message: String) -> String {
-            text("保存到相册失败：\(message)", "Save to Photos failed: \(message)")
-        }
-    }
-
-    enum Processing {
-        static let preparing = text("准备…", "Preparing...")
-        static let cancelling = text("正在取消…", "Cancelling...")
-        static let summary = text("端侧处理中 · 深度 → 分割 → 背景补全 → 烘焙", "On-device · depth → segmentation → fill → bake")
-        static let preprocess = text("预处理图像…", "Preprocessing image...")
-        static let depth = text("估计深度…", "Estimating depth...")
-        static let segment = text("分割主体…", "Segmenting subject...")
-        static let fillBackground = text("补全主体背后的背景…", "Filling background behind the subject...")
-        static let miganFill = text("AI 补全背景（MI-GAN，端侧生成）…", "AI background fill with MI-GAN on device...")
-        static let patchMatchFill = text("高质量补全背景（PatchMatch · 深度感知，较慢）…", "High-quality PatchMatch depth-aware fill...")
-        static let baking = text("烘焙 3D 网格…", "Baking 3D mesh...")
-        static let complete = text("完成", "Complete")
-    }
-
-    enum Editor {
-        static let reframeReady = text("重拍 · 已补全", "Reframe · Filled")
-        static let reframePreview = text("重拍 · 换个机位", "Reframe · Move Camera")
-        static let reframeHint = text("单指拖动改变视角 · 双指缩放 · 双击复位", "Drag to move camera · Pinch to zoom · Double tap to reset")
-        static let fillThisView = text("补全这一视角", "Fill This View")
-        static let adjustAgain = text("重新调整", "Adjust Again")
-        static let filling = text("补全露出的区域…", "Filling revealed regions...")
-        static let viewerHint = text("倾斜手机 · 拖动画面 · 双击复位", "Tilt phone · Drag view · Double tap to reset")
-    }
-
-    enum Controls {
-        static let title = text("3D 照片", "3D Photo")
-        static let view = text("查看", "View")
-        static let normal = text("正常", "Normal")
-        static let depth = text("深度", "Depth")
-        static let subject = text("主体", "Subject")
-        static let background = text("背景", "Background")
-        static let strength = text("3D 强度", "3D Strength")
-        static let backgroundParallax = text("背景视差", "Background Parallax")
-        static let foregroundScale = text("前景放大", "Foreground Scale")
-        static let gyro = text("陀螺仪", "Gyro")
-        static let autoRotate = text("自动旋转", "Auto Rotate")
-        static let layeredBackground = text("背景分层", "Layered BG")
-        static let framePopOut = text("出框", "Pop Out")
-        static let exportVideo = text("导出视频", "Export Video")
-        static let spatialPhoto = text("空间照片", "Spatial Photo")
-    }
-
-    enum Export {
-        static let renderingVideo = text("正在渲染视差视频…", "Rendering parallax video...")
-        static let renderingSpatial = text("正在渲染空间照片…", "Rendering spatial photo...")
-        static let saved = text("已保存到相册", "Saved to Photos")
-        static let shareFile = text("分享文件", "Share File")
-        static let videoTitle = text("视差视频", "Parallax Video")
-        static let spatialTitle = text("空间照片", "Spatial Photo")
-        static let videoSubtitle = text("可保存到相册或分享。循环视差，适合社交分享。", "Save to Photos or share. Looped parallax works well for social posts.")
-        static let spatialSubtitle = text("立体 HEIC，AirDrop 到 Apple Vision Pro 可作为空间照片查看。", "Stereo HEIC. AirDrop to Apple Vision Pro to view as a spatial photo.")
-    }
-
-    static func fillModeTitle(_ mode: FillMode) -> String {
-        switch mode {
-        case .fast: return text("快速", "Fast")
-        case .patchMatch: return "PatchMatch"
-        case .migan: return text("AI 补全", "AI Fill")
-        }
-    }
-
-    static func fillModeDetail(_ mode: FillMode) -> String {
-        switch mode {
-        case .fast: return text("竖直延续 · 深度门控 · 实时", "Vertical propagation · depth gated · realtime")
-        case .patchMatch: return text("内容感知 · 更连贯 · 较慢（约十几秒）", "Content-aware · more coherent · slower")
-        case .migan: return text("MI-GAN 神经生成 · 端侧 · 处理较慢", "MI-GAN neural fill · on device · slower")
-        }
-    }
-
-    static func sourceInfo(depth: String, subject: String, fill: String) -> String {
-        text(
-            "深度：\(source(depth)) · 主体：\(source(subject)) · 补全：\(source(fill))",
-            "Depth: \(source(depth)) · Subject: \(source(subject)) · Fill: \(source(fill))"
-        )
-    }
-
-    static func source(_ value: String) -> String {
-        switch value {
-        case "伪深度(兜底)": return text("伪深度(兜底)", "Pseudo depth fallback")
-        case "前景主体实例": return text("前景主体实例", "Foreground instance")
-        case "人物分割": return text("人物分割", "Person segmentation")
-        case "深度阈值近似": return text("深度阈值近似", "Depth-threshold approximation")
-        case "PatchMatch+depth(MI-GAN 不可用)": return text("PatchMatch+depth(MI-GAN 不可用)", "PatchMatch+depth (MI-GAN unavailable)")
-        default: return value
-        }
-    }
-}
+import Metal
 
 @MainActor
 final class AppModel: ObservableObject {
 
     enum Stage: Equatable { case idle, processing, editor }
-    enum ExportKind { case video, spatial }
-    struct ExportResult: Identifiable { let id = UUID(); let url: URL; let kind: ExportKind }
+    enum ExportKind { case video, spatial, gif, live }
+
+    /// 渲染方案（首页选择）：分层视差(LDI，原有) / 高斯泼溅(3DGS，新)。
+    enum SceneMode: String, CaseIterable, Identifiable, Sendable {
+        case layeredLDI
+        case gaussianSplat
+        var id: String { rawValue }
+        var title: String {
+            switch self { case .layeredLDI: return String(localized: "Layered Parallax"); case .gaussianSplat: return String(localized: "Gaussian Splatting") }
+        }
+        var detail: String {
+            switch self {
+            case .layeredLDI:    return String(localized: "Real-time depth-layered mesh, great for subtle parallax, pop-out, and export")
+            case .gaussianSplat: return String(localized: "On-device 3D Gaussian splatting with true novel views, fully offline and dependency-free")
+            }
+        }
+    }
+    struct ExportResult: Identifiable { let id = UUID(); let url: URL; let kind: ExportKind; var pairedURL: URL? = nil }
 
     @Published var stage: Stage = .idle
     @Published var progress: Double = 0
@@ -152,19 +31,40 @@ final class AppModel: ObservableObject {
     @Published var scene: Photo3DScene?
     @Published var params = ViewerParams()
     @Published var fillMode: FillMode = .fast   // 启动页选择：快速 / PatchMatch / MI-GAN
+    @Published var sceneMode: SceneMode = .layeredLDI   // 启动页选择：分层视差(LDI) / 高斯泼溅(3DGS)
     @Published var sourceInfo = ""
     @Published var errorMessage: String?
+    @Published var sourceImage: UIImage?         // 原图：高斯模式「虚拟云状」背景 + 修复补底
+
+    // 视角修复（高斯模式「补全这一视角」）：端侧 LaMa/MI-GAN 默认，离线；可选 Gemini 云端。
+    @Published var repairResult: UIImage?
+    @Published var repairing = false
+    @Published var repairFailed = false
+    @Published var repairMessage = ""
+    @Published var geminiEnabled = UserDefaults.standard.bool(forKey: "Arcus.geminiEnabled") {
+        didSet { UserDefaults.standard.set(geminiEnabled, forKey: "Arcus.geminiEnabled") }
+    }
+    @Published var geminiKey = UserDefaults.standard.string(forKey: "Arcus.geminiKey") ?? "" {
+        didSet { UserDefaults.standard.set(geminiKey, forKey: "Arcus.geminiKey") }
+    }
+    @Published var geminiModel = UserDefaults.standard.string(forKey: "Arcus.geminiModel") ?? GeminiRepair.defaultModel {
+        didSet { UserDefaults.standard.set(geminiModel, forKey: "Arcus.geminiModel") }
+    }
 
     @Published var isExporting = false
     @Published var exportMessage = ""
     @Published var exportResult: ExportResult?
     @Published var toast: String?
 
+    // 空间画廊（端侧持久化的「3D 照片库」）
+    @Published var galleryItems: [LibraryItem] = []
+
     let pipeline = Photo3DPipeline()
     private(set) lazy var depthModelAvailable: Bool = pipeline.isDepthModelAvailable
 
     private var processingTask: Task<Void, Never>?
     private var exportTask: Task<Void, Never>?
+    private var activeRequestID = UUID()   // 防乱序：重选/取消后，旧任务的迟到结果不得覆盖新状态
 
     // MARK: - 处理入口
 
@@ -172,50 +72,78 @@ final class AppModel: ObservableObject {
         // ImageIO 子采样解码：摆正 + 降采样一步完成，超大照片(48MP)不在原始分辨率整图落内存。
         let maxSide = Photo3DPipeline.Options().maxWorkingSide
         guard let img = ImageUtils.downsampledImage(from: data, maxSide: maxSide) ?? UIImage(data: data) else {
-            errorMessage = AppText.Error.unreadableImage
+            errorMessage = String(localized: "Unable to read the selected image.")
             return
         }
         let av = AuxDepthLoader.avDepth(from: data)
         process(image: img, avDepth: av)
     }
 
+    func processSample() {
+        process(image: SampleImage.make(), avDepth: nil)
+    }
+
     private func process(image: UIImage, avDepth: AVDepthData?) {
         stage = .processing
         progress = 0
-        progressMessage = AppText.Processing.preparing
+        progressMessage = String(localized: "Preparing…")
         errorMessage = nil
+        sourceImage = image                 // 处理态炫彩特效 + 高斯雾状背景都要用原图
+        processingTask?.cancel()            // 重选/重跑：先取消上一条管线，让它在最近 checkCancellation() 退出，释放强引用、停止抢 CPU
+        let rid = UUID(); activeRequestID = rid
         let pipeline = self.pipeline
         let fm = self.fillMode
+        let sm = self.sceneMode
+        let useCloudFill = (fm == .cloud) && canUseGemini   // 仅 Cloud 模式且已配置 Key 才联网；否则管线自动回退 PatchMatch
+        let gKey = geminiKey, gModel = geminiModel
         processingTask = Task.detached(priority: .userInitiated) {
             do {
-                let scene = try pipeline.process(image: image, avDepth: avDepth,
-                                                 options: Photo3DPipeline.Options(fillMode: fm)) { p, m in
+                var opts = Photo3DPipeline.Options(fillMode: fm, buildGaussians: sm == .gaussianSplat)
+                if useCloudFill {
+                    opts.cloudFill = { rgb, hole in AppModel.cloudFillSync(rgb: rgb, hole: hole, key: gKey, model: gModel) }
+                }
+                let scene = try pipeline.process(image: image, avDepth: avDepth, options: opts) { p, m in
                     Task { @MainActor in
                         self.progress = p
                         self.progressMessage = m
                     }
                 }
+                // 存入空间画廊（端侧、离线、隐私）：原图 JPEG + 缩略图 + 方案元数据
+                try Task.checkCancellation()   // 已被新请求取消的孤儿任务不再写图库/触发淘汰
+                if let sdata = image.jpegData(compressionQuality: 0.9) {
+                    let saved = PhotoLibraryStore.shared.save(sourceData: sdata, sceneMode: sm.rawValue, fillMode: fm.rawValue)
+                    NSLog("[Gallery] saved record id=%@ bytes=%d", saved?.id ?? "nil", sdata.count)
+                } else {
+                    NSLog("[Gallery] jpegData is nil, skip save")
+                }
                 await MainActor.run {
+                    guard self.activeRequestID == rid else { return }   // 已有更新请求，丢弃本次结果
                     self.scene = scene
+                    self.galleryItems = PhotoLibraryStore.shared.items()
+                    self.sourceImage = image
                     // 视差幅度：配合自适应支点(主体锚定、深层背景扫动)，略放大让背景运镜更明显。
                     self.params.parallaxAmp = 0.022 + scene.suggestedParallax * 0.026
-                    self.sourceInfo = AppText.sourceInfo(depth: scene.depthSource, subject: scene.segmentSource, fill: scene.inpaintSource)
+                    self.sourceInfo = String(format: String(localized: "Depth %1$@, subject %2$@, fill %3$@"), scene.depthSource, scene.segmentSource, scene.inpaintSource)
                     self.stage = .editor
                     // 测试钩子：AUTOEXPORT=video|spatial 时自动触发导出，便于冒烟测试导出链路。
                     switch ProcessInfo.processInfo.environment["AUTOEXPORT"] {
                     case "video": self.exportVideo()
                     case "spatial": self.exportSpatial()
+                    case "gif": self.exportGif()
+                    case "live": self.exportLive()
                     default: break
                     }
                 }
             } catch is CancellationError {
                 await MainActor.run {     // 用户主动取消：静默回到首页，不当作错误
+                    guard self.activeRequestID == rid else { return }
                     self.stage = .idle
                     self.progress = 0
                 }
             } catch {
                 await MainActor.run {
-                    self.errorMessage = AppText.Error.processingFailed(error.localizedDescription)
+                    guard self.activeRequestID == rid else { return }
+                    self.errorMessage = String(format: String(localized: "Processing failed: %@"), error.localizedDescription)
                     self.stage = .idle
                 }
             }
@@ -225,13 +153,199 @@ final class AppModel: ObservableObject {
     /// 取消处理：管线在各阶段节点检查 Task 取消并尽快退出。
     func cancelProcessing() {
         processingTask?.cancel()
-        progressMessage = AppText.Processing.cancelling
+        progressMessage = String(localized: "Cancelling…")
     }
 
     func reset() {
         scene = nil
         stage = .idle
         progress = 0
+        repairResult = nil
+        repairFailed = false
+        repairMessage = ""
+        sourceImage = nil
+        if isDollyZooming { dollyTask?.cancel(); dollyTask = nil; isDollyZooming = false }
+    }
+
+    // MARK: - 空间画廊
+
+    func refreshGallery() { galleryItems = PhotoLibraryStore.shared.items() }
+
+    /// 从画廊重新打开一张：按当初的方案/补全方式重跑（端侧很快，配合炫彩加载态）。
+    func openLibraryItem(_ item: LibraryItem) {
+        guard let data = PhotoLibraryStore.shared.sourceData(for: item) else {
+            errorMessage = String(localized: "Couldn't load this photo — it may have been cleared.")
+            refreshGallery()
+            return
+        }
+        sceneMode = SceneMode(rawValue: item.sceneMode) ?? sceneMode
+        fillMode = FillMode(rawValue: item.fillMode) ?? fillMode
+        processData(data)
+    }
+
+    func deleteLibraryItem(_ item: LibraryItem) {
+        PhotoLibraryStore.shared.delete(item)
+        refreshGallery()
+    }
+
+    /// 批量删除（画廊「多选删除」）：删完只刷新一次，避免逐条刷新抖动。
+    func deleteLibraryItems(_ ids: Set<String>) {
+        guard !ids.isEmpty else { return }
+        for item in galleryItems where ids.contains(item.id) {
+            PhotoLibraryStore.shared.delete(item)
+        }
+        refreshGallery()
+    }
+
+    // MARK: - 视角修复（高斯模式「补全这一视角」）
+
+    var canUseGemini: Bool { geminiEnabled && !geminiKey.trimmingCharacters(in: .whitespaces).isEmpty }
+
+    /// 把当前机位的离屏快照修成一张干净成片：优先 Gemini 云端（若已配置），否则/失败回退端侧 LaMa/MI-GAN（离线）。
+    /// 快照以异步闭包传入：在 MainActor 上 await（GPU 等待挂起、不阻塞主线程），重活随后丢进后台任务。
+    func repairCurrentViewpoint(snapshot: @escaping () async -> MTLTexture?) {
+        guard !repairing else { return }
+        repairing = true; repairFailed = false; repairResult = nil
+        let useCloud = canUseGemini
+        repairMessage = useCloud ? String(localized: "Repairing in the Gemini cloud…") : String(localized: "Repairing on-device…")
+        let original = sourceImage
+        let key = geminiKey, model = geminiModel
+        let pipeline = self.pipeline
+        Task { @MainActor in
+            guard let tex = await snapshot() else {     // GPU 等待在此挂起，主线程不卡
+                self.repairing = false; self.repairFailed = true
+                self.errorMessage = String(localized: "View repair failed. Please try again.")
+                return
+            }
+            Task.detached(priority: .userInitiated) {
+            let snapCG = TextureIO.cgImage(from: tex)
+            let snapUI = snapCG.map { UIImage(cgImage: $0) }
+            var result: UIImage?
+            if useCloud, let snapUI {
+                let composed = Self.composeForGemini(rendered: snapUI, source: original)
+                result = try? await GeminiRepair.repair(image: composed, key: key, model: model)
+            }
+            if result == nil, let (rgb, hole) = TextureIO.rgbAndHole(from: tex) {
+                let filled = pipeline.reframeInpaint(rgb: rgb, hole: hole.dilated(radius: 2)) ?? rgb
+                result = filled.toCGImage().map { UIImage(cgImage: $0) }
+            }
+            if result == nil { result = snapUI }
+            await MainActor.run {
+                self.repairing = false
+                if let result { self.repairResult = result }
+                else { self.repairFailed = true; self.errorMessage = String(localized: "View repair failed. Please try again.") }
+            }
+            }   // 关闭 Task.detached
+        }       // 关闭外层 Task { @MainActor }
+    }
+
+    func saveRepairResult() {
+        guard let img = repairResult else { return }
+        Task {
+            do {
+                guard let data = img.jpegData(compressionQuality: 0.95) else { throw MediaSaver.SaveError.failed }
+                let url = FileManager.default.temporaryDirectory
+                    .appendingPathComponent("Arcus-Reshot-\(UInt32.random(in: 0...UInt32.max)).jpg")
+                try data.write(to: url)
+                try await MediaSaver.saveImage(url)
+                self.toast = String(localized: "Saved to Photos")
+            } catch {
+                self.errorMessage = String(format: String(localized: "Failed to save to Photos: %@"), error.localizedDescription)
+            }
+        }
+    }
+
+    // MARK: - 镜头：自动推轨变焦 / 复位
+
+    @Published var isDollyZooming = false
+    private var dollyTask: Task<Void, Never>?
+
+    /// 自动希区柯克推轨变焦：循环把 gsDolly 推近→拉远→归位（60fps smoothstep）。
+    func toggleDollyZoom() {
+        if isDollyZooming {
+            dollyTask?.cancel(); dollyTask = nil; isDollyZooming = false
+            withAnimation(.easeOut(duration: 0.4)) { params.gsDolly = 0 }
+            return
+        }
+        isDollyZooming = true
+        dollyTask = Task { @MainActor in
+            while !Task.isCancelled {
+                await self.rampDolly(0, 0.6, 1.2)
+                await self.rampDolly(0.6, -0.35, 1.4)
+                await self.rampDolly(-0.35, 0, 0.9)
+            }
+            self.isDollyZooming = false
+        }
+    }
+
+    private func rampDolly(_ from: Float, _ to: Float, _ dur: Double) async {
+        let steps = max(1, Int(dur * 60))
+        for i in 0...steps {
+            if Task.isCancelled { return }
+            let t = Float(i) / Float(steps)
+            params.gsDolly = from + (to - from) * (t * t * (3 - 2 * t))
+            try? await Task.sleep(nanoseconds: 16_666_667)
+        }
+    }
+
+    func resetLens() {
+        if isDollyZooming { dollyTask?.cancel(); dollyTask = nil; isDollyZooming = false }
+        withAnimation(.easeOut(duration: 0.25)) {
+            params.gsDolly = 0; params.gsFocus = 0.5; params.gsFNumber = 16
+        }
+    }
+
+    /// 把含透明洞的快照叠到原图(aspect-fill)上，得到给 Gemini 的完整帧（洞处用原图补底）。
+    nonisolated private static func composeForGemini(rendered: UIImage, source: UIImage?) -> UIImage {
+        let size = rendered.size
+        let fmt = UIGraphicsImageRendererFormat(); fmt.scale = rendered.scale; fmt.opaque = true
+        return UIGraphicsImageRenderer(size: size, format: fmt).image { ctx in
+            if let source, source.size.width > 0, source.size.height > 0 {
+                let s = max(size.width / source.size.width, size.height / source.size.height)
+                let dw = source.size.width * s, dh = source.size.height * s
+                source.draw(in: CGRect(x: (size.width - dw) / 2, y: (size.height - dh) / 2, width: dw, height: dh))
+            } else {
+                UIColor.black.setFill(); ctx.fill(CGRect(origin: .zero, size: size))
+            }
+            rendered.draw(in: CGRect(origin: .zero, size: size))
+        }
+    }
+
+    /// 云端背景补全（首页 Cloud Fill）：主体洞涂中性灰标出 → Gemini 生成身后背景 → 仅在洞内合成、洞外保留真背景。
+    /// 同步阻塞：在后台管线线程上以信号量等这一次网络调用；失败/超时返回 nil ⇒ 管线回退 PatchMatch（鲁棒兜底）。
+    nonisolated static func cloudFillSync(rgb: FloatImage, hole: FloatImage, key: String, model: String) -> FloatImage? {
+        let W = rgb.width, H = rgb.height
+        let ch = rgb.channels
+        guard ch >= 3, hole.width == W, hole.height == H else { return nil }
+        // 1) 洞(主体)涂中性灰，向模型标出「待移除前景 / 待补全背景」
+        var erased = rgb
+        for p in 0..<(W * H) where hole.pixels[p] > 0.5 {
+            let b = p * ch
+            erased.pixels[b] = 0.5; erased.pixels[b + 1] = 0.5; erased.pixels[b + 2] = 0.5
+        }
+        guard let erasedCG = erased.toCGImage() else { return nil }
+        // 2) 同步等待 Gemini（后台线程可阻塞；URLSession 自有线程，仅短暂占用一个协作线程）
+        let sem = DispatchSemaphore(value: 0)
+        var got: UIImage?
+        Task.detached(priority: .userInitiated) {
+            got = try? await GeminiRepair.fillBackground(image: UIImage(cgImage: erasedCG), key: key, model: model)
+            sem.signal()
+        }
+        sem.wait()
+        guard let got, let genCG = got.cgImage else { return nil }
+        // 3) 云端结果缩放回 W×H；只在洞内取云端、洞外保留真背景（柔边过渡，避免剪影硬边）
+        let gen = FloatImage.fromCGImage(genCG, width: W, height: H)   // 4ch
+        let feather = hole.boxBlurred(radius: max(2, W / 200), passes: 1)
+        var out = rgb
+        for p in 0..<(W * H) {
+            let a = max(0, min(1, feather.pixels[p]))
+            if a <= 0.001 { continue }
+            let gb = p * 4, ob = p * ch
+            out.pixels[ob]     = rgb.pixels[ob]     * (1 - a) + gen.pixels[gb]     * a
+            out.pixels[ob + 1] = rgb.pixels[ob + 1] * (1 - a) + gen.pixels[gb + 1] * a
+            out.pixels[ob + 2] = rgb.pixels[ob + 2] * (1 - a) + gen.pixels[gb + 2] * a
+        }
+        return out
     }
 
     // MARK: - 导出
@@ -239,12 +353,12 @@ final class AppModel: ObservableObject {
     func exportVideo() {
         guard let scene = scene else { return }
         isExporting = true
-        exportMessage = AppText.Export.renderingVideo
+        exportMessage = String(localized: "Rendering parallax video…")
         let params = self.params
         exportTask = Task.detached(priority: .userInitiated) {
             do {
                 let url = try VideoExporter.export(scene: scene, baseParams: params)
-                NSLog("[Export] 视频导出成功：%@", url.path)
+                NSLog("[Export] Video exported: %@", url.path)
                 await MainActor.run {
                     self.isExporting = false
                     self.exportResult = ExportResult(url: url, kind: .video)
@@ -254,7 +368,57 @@ final class AppModel: ObservableObject {
             } catch {
                 await MainActor.run {
                     self.isExporting = false
-                    self.errorMessage = AppText.Error.exportVideoFailed(error.localizedDescription)
+                    self.errorMessage = String(format: String(localized: "Failed to export video: %@"), error.localizedDescription)
+                }
+            }
+        }
+    }
+
+    func exportLive() {
+        guard let scene = scene else { return }
+        isExporting = true
+        exportMessage = String(localized: "Rendering Live Photo…")
+        let params = self.params
+        exportTask = Task.detached(priority: .userInitiated) {
+            do {
+                let r = try LivePhotoExporter.export(scene: scene, baseParams: params)
+                let sz = (try? Data(contentsOf: r.video))?.count ?? 0
+                NSLog("[Export] Live Photo exported still=%@ video=%@ (%dKB)", r.still.lastPathComponent, r.video.lastPathComponent, sz/1024)
+                await MainActor.run {
+                    self.isExporting = false
+                    self.exportResult = ExportResult(url: r.still, kind: .live, pairedURL: r.video)
+                }
+            } catch is CancellationError {
+                await MainActor.run { self.isExporting = false }
+            } catch {
+                await MainActor.run {
+                    self.isExporting = false
+                    self.errorMessage = String(format: String(localized: "Live Photo export failed: %@"), error.localizedDescription)
+                }
+            }
+        }
+    }
+
+    func exportGif() {
+        guard let scene = scene else { return }
+        isExporting = true
+        exportMessage = String(localized: "Rendering animation…")
+        let params = self.params
+        exportTask = Task.detached(priority: .userInitiated) {
+            do {
+                let url = try GifExporter.export(scene: scene, baseParams: params)
+                let sz = (try? Data(contentsOf: url))?.count ?? 0
+                NSLog("[Export] GIF exported %@ (%dKB)", url.lastPathComponent, sz/1024)
+                await MainActor.run {
+                    self.isExporting = false
+                    self.exportResult = ExportResult(url: url, kind: .gif)
+                }
+            } catch is CancellationError {
+                await MainActor.run { self.isExporting = false }
+            } catch {
+                await MainActor.run {
+                    self.isExporting = false
+                    self.errorMessage = String(format: String(localized: "GIF export failed: %@"), error.localizedDescription)
                 }
             }
         }
@@ -263,7 +427,7 @@ final class AppModel: ObservableObject {
     func exportSpatial() {
         guard let scene = scene else { return }
         isExporting = true
-        exportMessage = AppText.Export.renderingSpatial
+        exportMessage = String(localized: "Rendering spatial photo…")
         let params = self.params
         exportTask = Task.detached(priority: .userInitiated) {
             do {
@@ -277,7 +441,7 @@ final class AppModel: ObservableObject {
             } catch {
                 await MainActor.run {
                     self.isExporting = false
-                    self.errorMessage = AppText.Error.exportSpatialFailed(error.localizedDescription)
+                    self.errorMessage = String(format: String(localized: "Failed to export spatial photo: %@"), error.localizedDescription)
                 }
             }
         }
@@ -286,7 +450,7 @@ final class AppModel: ObservableObject {
     /// 取消导出：VideoExporter 在帧循环里检查 Task 取消，中断并清理半成品文件。
     func cancelExport() {
         exportTask?.cancel()
-        exportMessage = AppText.Processing.cancelling
+        exportMessage = String(localized: "Cancelling…")
     }
 
     func saveToAlbum(_ result: ExportResult) {
@@ -294,11 +458,18 @@ final class AppModel: ObservableObject {
             do {
                 switch result.kind {
                 case .video: try await MediaSaver.saveVideo(result.url)
-                case .spatial: try await MediaSaver.saveImage(result.url)
+                case .spatial, .gif: try await MediaSaver.saveImage(result.url)   // GIF 字节原样落盘 → 相册保留动画
+                case .live:
+                    if let video = result.pairedURL {
+                        try await MediaSaver.saveLivePhoto(still: result.url, video: video)
+                    } else { try await MediaSaver.saveImage(result.url) }
                 }
-                self.toast = AppText.Export.saved
+                // 入相册后清理临时产物，避免 temporaryDirectory 持续堆积
+                try? FileManager.default.removeItem(at: result.url)
+                if let paired = result.pairedURL { try? FileManager.default.removeItem(at: paired) }
+                self.toast = String(localized: "Saved to Photos")
             } catch {
-                self.errorMessage = AppText.Error.saveFailed(error.localizedDescription)
+                self.errorMessage = String(format: String(localized: "Failed to save to Photos: %@"), error.localizedDescription)
             }
         }
     }

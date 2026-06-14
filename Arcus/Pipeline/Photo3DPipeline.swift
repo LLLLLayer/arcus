@@ -9,16 +9,27 @@ enum FillMode: String, CaseIterable, Identifiable, Sendable {
     case fast        // 竖直延续 + 深度门控（快，<1s，默认）
     case patchMatch  // PatchMatch 内容感知 + 深度门控（慢，~10s）
     case migan       // MI-GAN 神经补全（AI 生成，端侧）
+    case cloud       // Gemini 云端生成补全（可选、需 Key、联网；缺 Key/失败回退 PatchMatch）
 
     var id: String { rawValue }
     var title: String {
-        AppText.fillModeTitle(self)
+        switch self {
+        case .fast: return String(localized: "Fast")
+        case .patchMatch: return "PatchMatch"
+        case .migan: return String(localized: "AI Fill")
+        case .cloud: return String(localized: "Cloud")
+        }
     }
     var detail: String {
-        AppText.fillModeDetail(self)
+        switch self {
+        case .fast: return String(localized: "Vertical continuation, depth-gated, real-time")
+        case .patchMatch: return String(localized: "Content-aware, more coherent but slower (~10+ s)")
+        case .migan: return String(localized: "MI-GAN neural generation, on-device, slower")
+        case .cloud: return String(localized: "Gemini cloud generation, needs an API key, uploads each photo")
+        }
     }
     var source: String {
-        switch self { case .fast: return "vertical+depth"; case .patchMatch: return "PatchMatch+depth"; case .migan: return "MI-GAN" }
+        switch self { case .fast: return "vertical+depth"; case .patchMatch: return "PatchMatch+depth"; case .migan: return "MI-GAN"; case .cloud: return "Gemini cloud" }
     }
 }
 
@@ -30,6 +41,13 @@ final class Photo3DPipeline {
         var ringRadiusFraction: Float = 0.045
         /// 背景补全方式：快速 / PatchMatch / MI-GAN。默认快速。
         var fillMode: FillMode = .fast
+        /// 是否额外构建 3D 高斯泼溅场景（首页选「高斯泼溅」时为 true）。
+        /// 复用同一条管线产物（前景主体 + 完整补全背景）lift 成 3D 高斯，LDI 烘焙照常进行。
+        var buildGaussians: Bool = false
+        /// 云端背景补全闭包（仅 `.cloud` 且已配置 Gemini Key 时注入）：
+        /// (rgb3, 主体洞) → 补全后的整幅背景色(洞内云端生成、洞外真背景)；nil/失败时管线回退 PatchMatch。
+        /// 同步签名：在后台管线线程上以信号量阻塞等待这一次网络调用（见 AppModel.cloudFillSync）。
+        var cloudFill: ((FloatImage, FloatImage) -> FloatImage?)? = nil
     }
 
     enum PipelineError: Error { case badImage, textureAllocation }
@@ -54,7 +72,7 @@ final class Photo3DPipeline {
                  progress: @escaping (Double, String) -> Void) throws -> Photo3DScene {
 
         let t0 = CFAbsoluteTimeGetCurrent()
-        progress(0.05, AppText.Processing.preprocess)
+        progress(0.05, String(localized: "Preprocessing image…"))
         guard let work = ImageUtils.workingImage(from: image, maxSide: options.maxWorkingSide) else {
             throw PipelineError.badImage
         }
@@ -63,12 +81,12 @@ final class Photo3DPipeline {
 
         // 取消检查放在各阶段边界：用户取消后尽快退出（PatchMatch/MI-GAN 模式整条管线 10s+）。
         try Task.checkCancellation()
-        progress(0.20, AppText.Processing.depth)
+        progress(0.20, String(localized: "Estimating depth…"))
         let depthResult = depthEstimator.estimate(cgImage: cg, width: W, height: H, avDepth: avDepth)
         var disparity = depthResult.disparity
 
         try Task.checkCancellation()
-        progress(0.45, AppText.Processing.segment)
+        progress(0.45, String(localized: "Segmenting subject…"))
         let segResult = segmenter.segment(cgImage: cg, width: W, height: H)
 
         // 主体 mask：系统分割优先；否则用深度近场阈值近似。
@@ -105,7 +123,7 @@ final class Photo3DPipeline {
         disparity = disparity.median3()
 
         try Task.checkCancellation()
-        progress(0.62, AppText.Processing.fillBackground)
+        progress(0.62, String(localized: "Filling the background behind the subject…"))
 
         let longSide = Float(max(W, H))
 
@@ -126,21 +144,41 @@ final class Photo3DPipeline {
         let rgbColor = rgb3(color)
         let bgColorImg: FloatImage
         let inpaintSource: String
+        var bgFilledByNeural = false   // 仅当 MI-GAN/Cloud「真的」生成了虚构内容时为真 ⇒ 决定背景深度走重估而非 push-pull
         switch options.fillMode {
         case .migan:
-            progress(0.62, AppText.Processing.miganFill)
+            progress(0.62, String(localized: "AI-filling the background (MI-GAN, on-device)…"))
             // 把洞(主体)小幅外扩再喂给 MI-GAN，确保人被完全盖住——否则模型看到边缘的人像残片(发丝/衣角)
             // 会把人「续」进可见带里。外扩环带在静止时被前景遮住、动起来正是要生成的带，故只赚不亏。
             let migHole = subj.dilated(radius: max(6, W / 100))
             if let mig = miganInpainter.inpaint(rgb: rgbColor, hole: migHole) {
                 bgColorImg = mig
                 inpaintSource = "MI-GAN"
+                bgFilledByNeural = true
             } else {
                 bgColorImg = DisocclusionInpainter.patchMatchFill(rgbColor, valid: validFull, disparity: disparity)
-                inpaintSource = "PatchMatch+depth(MI-GAN 不可用)"
+                inpaintSource = "PatchMatch+depth (MI-GAN unavailable)"
+            }
+        case .cloud:
+            // 同 MI-GAN：把洞(主体)小幅外扩再交给云端，确保主体被完全盖住、生成的是身后背景。
+            let cloudHole = subj.dilated(radius: max(6, W / 100))
+            if let cloudFill = options.cloudFill {           // 已配置 Key 才联网；否则直接走 PatchMatch（消息不误报「云端」）
+                progress(0.62, String(localized: "Cloud-filling the background (Gemini)…"))
+                if let cloud = cloudFill(rgbColor, cloudHole) {
+                    bgColorImg = cloud
+                    inpaintSource = "Gemini cloud"
+                    bgFilledByNeural = true
+                } else {
+                    bgColorImg = DisocclusionInpainter.patchMatchFill(rgbColor, valid: validFull, disparity: disparity)
+                    inpaintSource = "PatchMatch+depth (cloud failed)"
+                }
+            } else {
+                progress(0.62, String(localized: "High-quality background fill (PatchMatch, depth-aware, slower)…"))
+                bgColorImg = DisocclusionInpainter.patchMatchFill(rgbColor, valid: validFull, disparity: disparity)
+                inpaintSource = "PatchMatch+depth (no API key)"
             }
         case .patchMatch:
-            progress(0.62, AppText.Processing.patchMatchFill)
+            progress(0.62, String(localized: "High-quality background fill (PatchMatch, depth-aware, slower)…"))
             bgColorImg = DisocclusionInpainter.patchMatchFill(rgbColor, valid: validFull, disparity: disparity)
             inpaintSource = "PatchMatch+depth"
         case .fast:
@@ -161,19 +199,21 @@ final class Photo3DPipeline {
         let ih = max(2, Int((Float(H) * s).rounded()))
         let dispSmall = disparity.resized(to: iw, to: ih)
         let validSmall = validFull.resized(to: iw, to: ih)
+        // MI-GAN 与 Cloud 真正生成了「无深度的虚构内容」⇒ 对补全后的彩色图重估一遍深度（与画面连续）。
+        // 回退到 PatchMatch/竖直延续(真背景)时走 push-pull 扩散，更贴合真实背景层。
         let bgDepthImg: FloatImage
-        if options.fillMode == .migan, let filledCG = bgColorImg.toCGImage() {
+        if bgFilledByNeural, let filledCG = bgColorImg.toCGImage() {
             var reEst = depthEstimator.estimate(cgImage: filledCG, width: W, height: H, avDepth: nil).disparity
             reEst = reEst.median3()
             bgDepthImg = depthAlignedHoleFill(original: disparity, reEstimated: reEst, hole: subj)
-        } else if options.fillMode == .migan {
+        } else if bgFilledByNeural {
             bgDepthImg = DisocclusionInpainter.planarFill(disparity, valid: validFull)   // 兜底：转 CGImage 失败
         } else {
             bgDepthImg = DisocclusionInpainter.pushPullFill(dispSmall, valid: validSmall).resized(to: W, to: H)
         }
 
         try Task.checkCancellation()
-        progress(0.85, AppText.Processing.baking)
+        progress(0.85, String(localized: "Baking 3D mesh…"))
 
         // 前景几何深度——关键：
         // (1) 主体内部「带掩膜强平滑」：Depth Anything 在发丝/边缘处深度噪声极大，
@@ -258,6 +298,9 @@ final class Photo3DPipeline {
         }
 
         // ===== 背景再分层（近景背景中间层 mid + 远景背景打底 far），供「背景再分层」开关使用 =====
+        // 优化：高斯泼溅模式查看走 3DGS、不用 LDI 多层背景，跳过这段重 CPU（pushPull×2 + 第二次建网格）省数秒。
+        var multiLayer: Photo3DScene.MultiLayer?
+        if !options.buildGaussians {
         // 把「非主体」背景按视差中位数拆成 近景背景(更近、动得多) / 远景背景(更远、动得少)。
         var midThr: Float = 0.5
         var bgVals = [Float](); bgVals.reserveCapacity(W * H)
@@ -319,7 +362,6 @@ final class Photo3DPipeline {
         let farColorImg = DisocclusionInpainter.pushPullFill(bgColorImg, valid: farColorValid)
         let farValidSmall = farValid.resized(to: iw, to: ih)
         let farDepthImg = DisocclusionInpainter.pushPullFill(dispSmall, valid: farValidSmall).resized(to: W, to: H)
-        var multiLayer: Photo3DScene.MultiLayer?
         if let midMesh = MeshBuilder.build(width: W, height: H, disparity: midDisp, matte: midMatte, stride: 2, tauCut: 0.05),
            let midColorTex = midRGBA.uploadColorTexture(),
            let midDepthTex = midDisp.uploadScalarTexture(),
@@ -331,14 +373,27 @@ final class Photo3DPipeline {
                 farColor: farColorTex, farDepth: farDepthTex,
                 midCenter: midCenter, midScaleFactor: midScaleFactor)
         }
+        }   // end if !options.buildGaussians
 
         // 视差幅度建议：按深度分布的展开度。
         let suggested = suggestedParallax(from: disparity)
 
-        NSLog("[Pipeline] 完成 %dx%d 用时 %.2fs (深度:%@ 主体:%@ 补全:%@ 三角 前景:%d/背景:%d)", W, H,
+        // ===== 3D 高斯泼溅（可选）：从已算好的前景/背景 FloatImage 直接 lift（零新模型、全离线）=====
+        // 背景层 = 完整补全背景(bgColorImg+bgDepthImg)；前景层 = 主体像素(color+fgDisp，matte 当不透明度)。
+        var gaussianScene: GaussianScene?
+        if options.buildGaussians {
+            try Task.checkCancellation()
+            progress(0.92, String(localized: "Building 3D Gaussians…"))
+            gaussianScene = GaussianSplatBuilder.build(
+                color: color, fgDisp: fgDisp, matte: fgAField,
+                bgColor: bgColorImg, bgDisp: bgDepthImg,
+                depthPivot: depthPivot, suggestedParallax: suggested)
+        }
+
+        NSLog("[Pipeline] done %dx%d in %.2fs (depth:%@ subject:%@ fill:%@ tris fg:%d/bg:%d)", W, H,
               CFAbsoluteTimeGetCurrent() - t0, depthResult.source.rawValue, segSource, inpaintSource,
               mesh.fgIndexCount / 3, mesh.bgIndexCount / 3)
-        progress(1.0, AppText.Processing.complete)
+        progress(1.0, String(localized: "Done"))
         return Photo3DScene(
             width: W, height: H,
             fgColor: fgColorTex, depth: depthTex,
@@ -348,11 +403,12 @@ final class Photo3DPipeline {
             fgIndexBuffer: mesh.fgIndexBuffer, fgIndexCount: mesh.fgIndexCount,
             suggestedParallax: suggested,
             depthPreview: nil, maskPreview: nil, backgroundPreview: nil,
-            depthSource: depthResult.source.rawValue,
-            segmentSource: segSource, inpaintSource: inpaintSource,
+            depthSource: locSource(depthResult.source.rawValue),
+            segmentSource: locSource(segSource), inpaintSource: locSource(inpaintSource),
             fgCenter: fgCenter,
             depthPivot: depthPivot,
-            multiLayer: multiLayer)
+            multiLayer: multiLayer,
+            gaussianScene: gaussianScene)
     }
 
     // MARK: - 辅助
@@ -452,6 +508,18 @@ final class Photo3DPipeline {
         let std = sqrt(varSum / Float(n))
         // std 越大（深度层次越分明），默认视差可越大。
         return min(1.0, max(0.4, std * 3.0))
+    }
+}
+
+/// 把来源信息里的中文枚举值映射到本地化字符串（仅用于来源信息胶囊；NSLog 仍用原始 rawValue）。
+func locSource(_ s: String) -> String {
+    switch s {
+    case "Pseudo-depth (fallback)": return String(localized: "Pseudo-depth (fallback)")
+    case "Foreground subject instance": return String(localized: "Foreground subject instance")
+    case "Person segmentation": return String(localized: "Person segmentation")
+    case "Depth-threshold approximation": return String(localized: "Depth-threshold approximation")
+    case "PatchMatch+depth (MI-GAN unavailable)": return String(localized: "PatchMatch+depth (MI-GAN unavailable)")
+    default: return s
     }
 }
 

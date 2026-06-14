@@ -33,4 +33,16 @@ enum MediaSaver {
             req.addResource(with: .photo, fileURL: url, options: nil)
         }
     }
+
+    /// 实况照片：把静帧(.photo)与配对视频(.pairedVideo)作为同一资产的两个资源写入，系统据此识别为 Live Photo。
+    static func saveLivePhoto(still: URL, video: URL) async throws {
+        try await ensureAuthorized()
+        try await PHPhotoLibrary.shared().performChanges {
+            let req = PHAssetCreationRequest.forAsset()
+            let opts = PHAssetResourceCreationOptions()
+            opts.shouldMoveFile = false
+            req.addResource(with: .photo, fileURL: still, options: opts)
+            req.addResource(with: .pairedVideo, fileURL: video, options: opts)
+        }
+    }
 }

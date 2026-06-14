@@ -24,6 +24,29 @@ enum TextureIO {
         return ctx.makeImage()
     }
 
+    /// 从预乘 bgra8 纹理读回直通 RGB(3ch) + 洞掩膜(1ch, alpha<阈=1)，供端侧修复（LaMa/MI-GAN）使用。
+    static func rgbAndHole(from texture: MTLTexture, holeThreshold: Float = 0.5) -> (rgb: FloatImage, hole: FloatImage)? {
+        let w = texture.width, h = texture.height
+        guard w > 0, h > 0 else { return nil }
+        var bytes = [UInt8](repeating: 0, count: w * h * 4)
+        bytes.withUnsafeMutableBytes { raw in
+            texture.getBytes(raw.baseAddress!, bytesPerRow: w * 4,
+                             from: MTLRegionMake2D(0, 0, w, h), mipmapLevel: 0)
+        }
+        var rgb = FloatImage(width: w, height: h, channels: 3)
+        var hole = FloatImage(width: w, height: h, channels: 1)
+        let inv255: Float = 1.0 / 255.0
+        for p in 0..<(w * h) {
+            let a = Float(bytes[p * 4 + 3]) * inv255           // bgra: [0]=B [1]=G [2]=R [3]=A
+            let unp: Float = a > 1e-3 ? 1.0 / a : 0
+            rgb.pixels[p * 3 + 0] = min(1, Float(bytes[p * 4 + 2]) * inv255 * unp)
+            rgb.pixels[p * 3 + 1] = min(1, Float(bytes[p * 4 + 1]) * inv255 * unp)
+            rgb.pixels[p * 3 + 2] = min(1, Float(bytes[p * 4 + 0]) * inv255 * unp)
+            hole.pixels[p] = a < holeThreshold ? 1 : 0
+        }
+        return (rgb, hole)
+    }
+
     /// 把 bgra8 纹理拷进给定的 CVPixelBuffer(32BGRA)。
     static func copy(texture: MTLTexture, into pixelBuffer: CVPixelBuffer) {
         CVPixelBufferLockBaseAddress(pixelBuffer, [])

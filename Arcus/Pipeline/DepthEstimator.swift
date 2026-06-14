@@ -9,7 +9,7 @@ import CoreVideo
 /// 产出统一为「视差」FloatImage(1ch)，约定 0=最远、1=最近，已归一化到工作分辨率。
 final class DepthEstimator {
 
-    enum Source: String { case avDepth = "AVDepthData", coreML = "Depth Anything V2", pseudo = "伪深度(兜底)" }
+    enum Source: String { case avDepth = "AVDepthData", coreML = "Depth Anything V2", pseudo = "Pseudo-depth (fallback)" }
 
     struct Result {
         var disparity: FloatImage   // 1ch, 0…1, 1=近
@@ -46,7 +46,7 @@ final class DepthEstimator {
         guard !triedLoad else { return }
         triedLoad = true
         guard let url = Self.findModelURL() else {
-            NSLog("[Depth] 未找到 Core ML 深度模型，将使用伪深度兜底。运行 scripts/download_models.sh 获取模型。")
+            NSLog("[Depth] No Core ML depth model found; using pseudo-depth fallback. Run scripts/download_models.sh to fetch models.")
             return
         }
         do {
@@ -54,9 +54,9 @@ final class DepthEstimator {
             cfg.computeUnits = .all
             let ml = try MLModel(contentsOf: url, configuration: cfg)
             vnModel = try VNCoreMLModel(for: ml)
-            NSLog("[Depth] 已加载 Core ML 深度模型：\(url.lastPathComponent)")
+            NSLog("[Depth] Loaded Core ML depth model: \(url.lastPathComponent)")
         } catch {
-            NSLog("[Depth] 加载深度模型失败：\(error.localizedDescription)")
+            NSLog("[Depth] Failed to load depth model: \(error.localizedDescription)")
         }
     }
 
@@ -102,7 +102,7 @@ final class DepthEstimator {
         do {
             try handler.perform([request])
         } catch {
-            NSLog("[Depth] Core ML 推理失败：\(error.localizedDescription)")
+            NSLog("[Depth] Core ML inference failed: \(error.localizedDescription)")
             return nil
         }
         guard let obs = request.results?.first as? VNPixelBufferObservation,

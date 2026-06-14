@@ -4,8 +4,7 @@ import SwiftUI
 struct ArcusApp: App {
     var body: some Scene {
         WindowGroup {
-            ContentView()
-                .preferredColorScheme(.dark)
+            ContentView()   // 跟随系统深浅色（Theme 全自适应）
         }
     }
 }
