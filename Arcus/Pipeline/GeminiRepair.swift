@@ -23,6 +23,19 @@ enum GeminiRepair {
     但保持原主体、视角、透视、布局、光线与颜色不变；画面中若有人物必须保持原样。
     """
 
+    /// 云端「背景补全」prompt：把平涂灰色剪影标出的前景主体移除、生成身后背景。
+    /// 与「视角修复」是不同任务（那是修渲染瑕疵），故用独立 prompt；首页 Cloud Fill 用。
+    static let fillPrompt = """
+    This photo has a flat gray silhouette covering a foreground subject that must be removed. \
+    Reconstruct ONLY the area under the gray silhouette: fill it with the background that would \
+    naturally continue behind the subject — extend the surrounding textures, edges, surfaces and \
+    lighting so the gray region disappears seamlessly. Keep everything OUTSIDE the gray silhouette \
+    exactly as-is (same framing, perspective, colors, lighting). Do not add people, objects or text. \
+    Output one single clean photo of the scene with the foreground subject gone.
+    这张图里有一块平涂灰色的前景主体剪影，需要被移除。只重建灰色区域：用主体身后本应延续的背景填满它，\
+    延展周围的纹理、边缘、表面与光照，让灰块自然消失；灰块以外保持原样。不要新增人物、物体或文字。输出一张干净的成片。
+    """
+
     enum RepairError: LocalizedError {
         case encode, badResponse(String), noImage(String)
         var errorDescription: String? {
@@ -36,6 +49,16 @@ enum GeminiRepair {
 
     /// 把一张已合成好的视角帧发给 Gemini，返回修复后的图片。
     static func repair(image: UIImage, key: String, model: String) async throws -> UIImage {
+        try await run(image: image, prompt: prompt, key: key, model: model)
+    }
+
+    /// 云端背景补全：传入「灰色剪影标出待移除主体」的图，返回主体被移除、背景补全后的图。
+    static func fillBackground(image: UIImage, key: String, model: String) async throws -> UIImage {
+        try await run(image: image, prompt: fillPrompt, key: key, model: model)
+    }
+
+    /// 通用 generateContent 调用：图 + prompt → 生成图。`repair`/`fillBackground` 共用同一套 HTTP 管线。
+    private static func run(image: UIImage, prompt: String, key: String, model: String) async throws -> UIImage {
         guard let png = downscaledPNG(image, maxSide: 1024) else { throw RepairError.encode }
         let m = model.trimmingCharacters(in: .whitespaces).isEmpty ? defaultModel : model
         let trimmedKey = key.trimmingCharacters(in: .whitespaces)

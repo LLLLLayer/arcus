@@ -170,7 +170,7 @@ struct EditorView: View {
                 HStack {
                     CircleIconButton(system: "xmark") { model.repairResult = nil; comparing = false }
                     Spacer()
-                    PillLabel(text: comparing ? String(localized: "Original") : String(format: String(localized: "Completed · %@"), model.canUseGemini ? "Gemini" : String(localized: "On-device")),
+                    PillLabel(text: comparing ? String(localized: "Original") : String(format: String(localized: "Completed (%@)"), model.canUseGemini ? "Gemini" : String(localized: "On-device")),
                               icon: comparing ? "photo" : "sparkles")
                     Spacer()
                     Color.clear.frame(width: 42, height: 42)
@@ -220,7 +220,7 @@ struct EditorView: View {
     }
 
     private var hintBar: some View {
-        PillLabel(text: String(localized: "Tilt your phone · Drag the image · Double-tap to reset"), icon: "hand.draw")
+        PillLabel(text: String(localized: "Tilt or drag to look around, double-tap to reset"), icon: "hand.draw")
             .padding(.bottom, 10)
     }
 
@@ -262,7 +262,7 @@ struct EditorView: View {
             HStack {
                 CircleIconButton(system: "xmark") { reframe = false }
                 Spacer()
-                PillLabel(text: reframeStage == .result ? String(localized: "Reshoot · Completed") : String(localized: "Reshoot · Change the camera angle"))
+                PillLabel(text: reframeStage == .result ? String(localized: "Reshoot complete") : String(localized: "Reshoot from a new angle"))
                 Spacer()
                 Color.clear.frame(width: 42, height: 42)
             }
@@ -272,7 +272,7 @@ struct EditorView: View {
             switch reframeStage {
             case .preview:
                 VStack(spacing: 12) {
-                    PillLabel(text: String(localized: "Drag with one finger to change the view · Pinch to zoom · Double-tap to reset"))
+                    PillLabel(text: String(localized: "Drag to look around, pinch to zoom, double-tap to reset"))
                     Button { generateReframe() } label: { Label("Complete This View", systemImage: "sparkles") }
                         .buttonStyle(PrimaryButtonStyle())
                         .frame(maxWidth: 260)
@@ -304,6 +304,8 @@ struct EditorView: View {
     private func generateReframe() {
         reframeStage = .generating
         let controller = reframeController
+        let useCloud = model.canUseGemini                     // 已配置 Gemini Key → 云端优先（与高斯模式一致）
+        let gKey = model.geminiKey, gModel = model.geminiModel
         Task {
             guard let shot = await MainActor.run(body: { controller.snapshot() }) else {
                 await MainActor.run { reframeStage = .preview }
@@ -312,6 +314,11 @@ struct EditorView: View {
             let rgb = shot.rgb, hole = shot.hole
             let pipeline = model.pipeline
             let img: UIImage? = await Task.detached(priority: .userInitiated) {
+                // 云端优先：把渲染帧交给 Gemini 生成式修复；失败/未配置回退端侧 LaMa→MI-GAN（离线）。
+                if useCloud, let rendered = rgb.toCGImage().map({ UIImage(cgImage: $0) }),
+                   let repaired = try? await GeminiRepair.repair(image: rendered, key: gKey, model: gModel) {
+                    return repaired
+                }
                 let filled = pipeline.reframeInpaint(rgb: rgb, hole: hole) ?? rgb
                 return filled.toCGImage().map { UIImage(cgImage: $0) }
             }.value

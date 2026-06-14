@@ -66,6 +66,9 @@ struct ControlsView: View {
             ChipToggle(title: "Auto-Rotate", icon: "arrow.triangle.2.circlepath", isOn: $model.params.autoAnimate, tint: Theme.accentA)
             ChipToggle(title: "Background Layering", icon: "square.3.layers.3d", isOn: $model.params.multiLayerBg, tint: .orange)
             ChipToggle(title: "Pop-Out", icon: "rectangle.split.3x1", isOn: $model.params.frameBars, tint: .mint)
+            // 「重拍·补全这一视角」可走云端：配置 Gemini Key（云端优先，否则端侧）。
+            chipButton(title: "Google API", icon: model.canUseGemini ? "cloud.fill" : "cloud",
+                       on: model.canUseGemini, tint: Theme.accentC) { onOpenGeminiSettings?() }
         }
     }
 
@@ -74,7 +77,7 @@ struct ControlsView: View {
     @ViewBuilder private var gaussianControls: some View {
         LazyVGrid(columns: [GridItem(.flexible(), spacing: 16), GridItem(.flexible(), spacing: 16)], spacing: 12) {
             LabeledSlider(title: "3D Strength", value: $model.params.parallaxAmp, range: 0.02...0.30)
-            LabeledSlider(title: "Dolly · In/Out", value: $model.params.gsDolly, range: -1.0...1.0, unit: "")
+            LabeledSlider(title: "Dolly (In/Out)", value: $model.params.gsDolly, range: -1.0...1.0, unit: "")
             LabeledSlider(title: "Focus", value: $model.params.gsFocus, range: 0.0...1.0)
             LabeledSlider(title: "Aperture (f)", value: $model.params.gsFNumber, range: 1.4...16.0, unit: "")
         }

@@ -274,6 +274,16 @@ struct CameraHomeCard: View {
         withAnimation(.easeInOut(duration: 0.4).delay(0.5)) { revealed = true }               // 张开后交叉淡入取景
     }
 
+    /// 关闭相机：停止取景，反向收起光圈、淡回闭合态——让用户开了也能随时关掉。
+    private func closeCamera() {
+        cam.stop()
+        withAnimation(.easeInOut(duration: 0.28)) { revealed = false }            // 取景淡出、暗底淡回
+        withAnimation(.spring(response: 0.5, dampingFraction: 0.82)) { openProgress = 0 }  // 光圈机械收合
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.34) {
+            started = false; autoFired = false   // 收尾：拆掉取景视图，光圈按钮恢复可点
+        }
+    }
+
     private func resetClosed() {
         started = false; openProgress = 0; revealed = false; autoFired = false
     }
@@ -320,13 +330,17 @@ struct CameraHomeCard: View {
     private var liveControls: some View {
         VStack {
             HStack {
-                roundButton(cam.flash.icon) { cam.flash = cam.flash.next }
+                roundButton("xmark") { closeCamera() }
+                    .accessibilityLabel(Text("Close"))
                 Spacer()
                 if cam.depthSupported {
                     PillLabel(text: String(localized: "Depth On"), icon: "cube.transparent")
                 }
                 Spacer()
-                roundButton("arrow.triangle.2.circlepath.camera.fill") { cam.switchCamera() }
+                HStack(spacing: 10) {
+                    roundButton(cam.flash.icon) { cam.flash = cam.flash.next }
+                    roundButton("arrow.triangle.2.circlepath.camera.fill") { cam.switchCamera() }
+                }
             }
             Spacer()
             shutterButton

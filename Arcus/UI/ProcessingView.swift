@@ -64,7 +64,7 @@ struct ProcessingView: View {
                 }
                 VStack(alignment: .leading, spacing: 2) {
                     Text(model.progressMessage).font(.subheadline.weight(.semibold)).foregroundStyle(.white)
-                    Text(String(format: String(localized: "%d%% · On-device processing"), Int(model.progress * 100))).font(.caption2).foregroundStyle(Theme.faint)
+                    Text(String(format: String(localized: "%d%% complete, on device"), Int(model.progress * 100))).font(.caption2).foregroundStyle(Theme.faint)
                 }
                 Spacer(minLength: 0)
                 Button { model.cancelProcessing() } label: {

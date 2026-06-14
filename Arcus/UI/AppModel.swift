@@ -18,8 +18,8 @@ final class AppModel: ObservableObject {
         }
         var detail: String {
             switch self {
-            case .layeredLDI:    return String(localized: "Depth-layered mesh · Real-time · Great for subtle parallax / pop-out / export")
-            case .gaussianSplat: return String(localized: "On-device 3D Gaussian splatting · True 3D novel views · Fully offline, zero dependencies")
+            case .layeredLDI:    return String(localized: "Real-time depth-layered mesh, great for subtle parallax, pop-out, and export")
+            case .gaussianSplat: return String(localized: "On-device 3D Gaussian splatting with true novel views, fully offline and dependency-free")
             }
         }
     }
@@ -94,11 +94,15 @@ final class AppModel: ObservableObject {
         let pipeline = self.pipeline
         let fm = self.fillMode
         let sm = self.sceneMode
+        let useCloudFill = (fm == .cloud) && canUseGemini   // 仅 Cloud 模式且已配置 Key 才联网；否则管线自动回退 PatchMatch
+        let gKey = geminiKey, gModel = geminiModel
         processingTask = Task.detached(priority: .userInitiated) {
             do {
-                let scene = try pipeline.process(image: image, avDepth: avDepth,
-                                                 options: Photo3DPipeline.Options(fillMode: fm,
-                                                                                  buildGaussians: sm == .gaussianSplat)) { p, m in
+                var opts = Photo3DPipeline.Options(fillMode: fm, buildGaussians: sm == .gaussianSplat)
+                if useCloudFill {
+                    opts.cloudFill = { rgb, hole in AppModel.cloudFillSync(rgb: rgb, hole: hole, key: gKey, model: gModel) }
+                }
+                let scene = try pipeline.process(image: image, avDepth: avDepth, options: opts) { p, m in
                     Task { @MainActor in
                         self.progress = p
                         self.progressMessage = m
@@ -119,7 +123,7 @@ final class AppModel: ObservableObject {
                     self.sourceImage = image
                     // 视差幅度：配合自适应支点(主体锚定、深层背景扫动)，略放大让背景运镜更明显。
                     self.params.parallaxAmp = 0.022 + scene.suggestedParallax * 0.026
-                    self.sourceInfo = String(format: String(localized: "Depth: %1$@ · Subject: %2$@ · Fill: %3$@"), scene.depthSource, scene.segmentSource, scene.inpaintSource)
+                    self.sourceInfo = String(format: String(localized: "Depth %1$@, subject %2$@, fill %3$@"), scene.depthSource, scene.segmentSource, scene.inpaintSource)
                     self.stage = .editor
                     // 测试钩子：AUTOEXPORT=video|spatial 时自动触发导出，便于冒烟测试导出链路。
                     switch ProcessInfo.processInfo.environment["AUTOEXPORT"] {
@@ -181,6 +185,15 @@ final class AppModel: ObservableObject {
 
     func deleteLibraryItem(_ item: LibraryItem) {
         PhotoLibraryStore.shared.delete(item)
+        refreshGallery()
+    }
+
+    /// 批量删除（画廊「多选删除」）：删完只刷新一次，避免逐条刷新抖动。
+    func deleteLibraryItems(_ ids: Set<String>) {
+        guard !ids.isEmpty else { return }
+        for item in galleryItems where ids.contains(item.id) {
+            PhotoLibraryStore.shared.delete(item)
+        }
         refreshGallery()
     }
 
@@ -296,6 +309,43 @@ final class AppModel: ObservableObject {
             }
             rendered.draw(in: CGRect(origin: .zero, size: size))
         }
+    }
+
+    /// 云端背景补全（首页 Cloud Fill）：主体洞涂中性灰标出 → Gemini 生成身后背景 → 仅在洞内合成、洞外保留真背景。
+    /// 同步阻塞：在后台管线线程上以信号量等这一次网络调用；失败/超时返回 nil ⇒ 管线回退 PatchMatch（鲁棒兜底）。
+    nonisolated static func cloudFillSync(rgb: FloatImage, hole: FloatImage, key: String, model: String) -> FloatImage? {
+        let W = rgb.width, H = rgb.height
+        let ch = rgb.channels
+        guard ch >= 3, hole.width == W, hole.height == H else { return nil }
+        // 1) 洞(主体)涂中性灰，向模型标出「待移除前景 / 待补全背景」
+        var erased = rgb
+        for p in 0..<(W * H) where hole.pixels[p] > 0.5 {
+            let b = p * ch
+            erased.pixels[b] = 0.5; erased.pixels[b + 1] = 0.5; erased.pixels[b + 2] = 0.5
+        }
+        guard let erasedCG = erased.toCGImage() else { return nil }
+        // 2) 同步等待 Gemini（后台线程可阻塞；URLSession 自有线程，仅短暂占用一个协作线程）
+        let sem = DispatchSemaphore(value: 0)
+        var got: UIImage?
+        Task.detached(priority: .userInitiated) {
+            got = try? await GeminiRepair.fillBackground(image: UIImage(cgImage: erasedCG), key: key, model: model)
+            sem.signal()
+        }
+        sem.wait()
+        guard let got, let genCG = got.cgImage else { return nil }
+        // 3) 云端结果缩放回 W×H；只在洞内取云端、洞外保留真背景（柔边过渡，避免剪影硬边）
+        let gen = FloatImage.fromCGImage(genCG, width: W, height: H)   // 4ch
+        let feather = hole.boxBlurred(radius: max(2, W / 200), passes: 1)
+        var out = rgb
+        for p in 0..<(W * H) {
+            let a = max(0, min(1, feather.pixels[p]))
+            if a <= 0.001 { continue }
+            let gb = p * 4, ob = p * ch
+            out.pixels[ob]     = rgb.pixels[ob]     * (1 - a) + gen.pixels[gb]     * a
+            out.pixels[ob + 1] = rgb.pixels[ob + 1] * (1 - a) + gen.pixels[gb + 1] * a
+            out.pixels[ob + 2] = rgb.pixels[ob + 2] * (1 - a) + gen.pixels[gb + 2] * a
+        }
+        return out
     }
 
     // MARK: - 导出

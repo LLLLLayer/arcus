@@ -9,20 +9,27 @@ enum FillMode: String, CaseIterable, Identifiable, Sendable {
     case fast        // 竖直延续 + 深度门控（快，<1s，默认）
     case patchMatch  // PatchMatch 内容感知 + 深度门控（慢，~10s）
     case migan       // MI-GAN 神经补全（AI 生成，端侧）
+    case cloud       // Gemini 云端生成补全（可选、需 Key、联网；缺 Key/失败回退 PatchMatch）
 
     var id: String { rawValue }
     var title: String {
-        switch self { case .fast: return String(localized: "Fast"); case .patchMatch: return "PatchMatch"; case .migan: return String(localized: "AI Fill") }
+        switch self {
+        case .fast: return String(localized: "Fast")
+        case .patchMatch: return "PatchMatch"
+        case .migan: return String(localized: "AI Fill")
+        case .cloud: return String(localized: "Cloud")
+        }
     }
     var detail: String {
         switch self {
-        case .fast: return String(localized: "Vertical continuation · Depth-gated · Real-time")
-        case .patchMatch: return String(localized: "Content-aware · More coherent · Slower (~10+ seconds)")
-        case .migan: return String(localized: "MI-GAN neural generation · On-device · Slower processing")
+        case .fast: return String(localized: "Vertical continuation, depth-gated, real-time")
+        case .patchMatch: return String(localized: "Content-aware, more coherent but slower (~10+ s)")
+        case .migan: return String(localized: "MI-GAN neural generation, on-device, slower")
+        case .cloud: return String(localized: "Gemini cloud generation, needs an API key, uploads each photo")
         }
     }
     var source: String {
-        switch self { case .fast: return "vertical+depth"; case .patchMatch: return "PatchMatch+depth"; case .migan: return "MI-GAN" }
+        switch self { case .fast: return "vertical+depth"; case .patchMatch: return "PatchMatch+depth"; case .migan: return "MI-GAN"; case .cloud: return "Gemini cloud" }
     }
 }
 
@@ -37,6 +44,10 @@ final class Photo3DPipeline {
         /// 是否额外构建 3D 高斯泼溅场景（首页选「高斯泼溅」时为 true）。
         /// 复用同一条管线产物（前景主体 + 完整补全背景）lift 成 3D 高斯，LDI 烘焙照常进行。
         var buildGaussians: Bool = false
+        /// 云端背景补全闭包（仅 `.cloud` 且已配置 Gemini Key 时注入）：
+        /// (rgb3, 主体洞) → 补全后的整幅背景色(洞内云端生成、洞外真背景)；nil/失败时管线回退 PatchMatch。
+        /// 同步签名：在后台管线线程上以信号量阻塞等待这一次网络调用（见 AppModel.cloudFillSync）。
+        var cloudFill: ((FloatImage, FloatImage) -> FloatImage?)? = nil
     }
 
     enum PipelineError: Error { case badImage, textureAllocation }
@@ -133,6 +144,7 @@ final class Photo3DPipeline {
         let rgbColor = rgb3(color)
         let bgColorImg: FloatImage
         let inpaintSource: String
+        var bgFilledByNeural = false   // 仅当 MI-GAN/Cloud「真的」生成了虚构内容时为真 ⇒ 决定背景深度走重估而非 push-pull
         switch options.fillMode {
         case .migan:
             progress(0.62, String(localized: "AI-filling the background (MI-GAN, on-device)…"))
@@ -142,12 +154,31 @@ final class Photo3DPipeline {
             if let mig = miganInpainter.inpaint(rgb: rgbColor, hole: migHole) {
                 bgColorImg = mig
                 inpaintSource = "MI-GAN"
+                bgFilledByNeural = true
             } else {
                 bgColorImg = DisocclusionInpainter.patchMatchFill(rgbColor, valid: validFull, disparity: disparity)
                 inpaintSource = "PatchMatch+depth (MI-GAN unavailable)"
             }
+        case .cloud:
+            // 同 MI-GAN：把洞(主体)小幅外扩再交给云端，确保主体被完全盖住、生成的是身后背景。
+            let cloudHole = subj.dilated(radius: max(6, W / 100))
+            if let cloudFill = options.cloudFill {           // 已配置 Key 才联网；否则直接走 PatchMatch（消息不误报「云端」）
+                progress(0.62, String(localized: "Cloud-filling the background (Gemini)…"))
+                if let cloud = cloudFill(rgbColor, cloudHole) {
+                    bgColorImg = cloud
+                    inpaintSource = "Gemini cloud"
+                    bgFilledByNeural = true
+                } else {
+                    bgColorImg = DisocclusionInpainter.patchMatchFill(rgbColor, valid: validFull, disparity: disparity)
+                    inpaintSource = "PatchMatch+depth (cloud failed)"
+                }
+            } else {
+                progress(0.62, String(localized: "High-quality background fill (PatchMatch, depth-aware, slower)…"))
+                bgColorImg = DisocclusionInpainter.patchMatchFill(rgbColor, valid: validFull, disparity: disparity)
+                inpaintSource = "PatchMatch+depth (no API key)"
+            }
         case .patchMatch:
-            progress(0.62, String(localized: "High-quality background fill (PatchMatch · depth-aware, slower)…"))
+            progress(0.62, String(localized: "High-quality background fill (PatchMatch, depth-aware, slower)…"))
             bgColorImg = DisocclusionInpainter.patchMatchFill(rgbColor, valid: validFull, disparity: disparity)
             inpaintSource = "PatchMatch+depth"
         case .fast:
@@ -168,12 +199,14 @@ final class Photo3DPipeline {
         let ih = max(2, Int((Float(H) * s).rounded()))
         let dispSmall = disparity.resized(to: iw, to: ih)
         let validSmall = validFull.resized(to: iw, to: ih)
+        // MI-GAN 与 Cloud 真正生成了「无深度的虚构内容」⇒ 对补全后的彩色图重估一遍深度（与画面连续）。
+        // 回退到 PatchMatch/竖直延续(真背景)时走 push-pull 扩散，更贴合真实背景层。
         let bgDepthImg: FloatImage
-        if options.fillMode == .migan, let filledCG = bgColorImg.toCGImage() {
+        if bgFilledByNeural, let filledCG = bgColorImg.toCGImage() {
             var reEst = depthEstimator.estimate(cgImage: filledCG, width: W, height: H, avDepth: nil).disparity
             reEst = reEst.median3()
             bgDepthImg = depthAlignedHoleFill(original: disparity, reEstimated: reEst, hole: subj)
-        } else if options.fillMode == .migan {
+        } else if bgFilledByNeural {
             bgDepthImg = DisocclusionInpainter.planarFill(disparity, valid: validFull)   // 兜底：转 CGImage 失败
         } else {
             bgDepthImg = DisocclusionInpainter.pushPullFill(dispSmall, valid: validSmall).resized(to: W, to: H)

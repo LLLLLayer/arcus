@@ -37,6 +37,7 @@ struct ContentView: View {
                 case "migan": model.fillMode = .migan
                 case "patchMatch": model.fillMode = .patchMatch
                 case "fast": model.fillMode = .fast
+                case "cloud": model.fillMode = .cloud
                 default: break
                 }
                 switch env["SCENEMODE"] {
@@ -75,6 +76,7 @@ private struct IdleView: View {
     @ObservedObject var model: AppModel
     @Binding var pickerItem: PhotosPickerItem?
     @State private var showGallery = false
+    @State private var showGeminiSettings = false
 
     var body: some View {
         ScrollView(showsIndicators: false) {
@@ -88,7 +90,7 @@ private struct IdleView: View {
                 librarySection
 
                 VStack(alignment: .leading, spacing: 12) {
-                    sectionLabel("Rendering Mode", "Choose how to turn your photo into 3D")
+                    sectionLabel("Rendering Mode", "Pick how your photo comes to life")
                     ForEach(AppModel.SceneMode.allCases) { mode in
                         SelectableCard(icon: icon(mode), title: mode.title, subtitle: mode.detail,
                                        selected: model.sceneMode == mode) {
@@ -98,12 +100,27 @@ private struct IdleView: View {
                 }
 
                 VStack(alignment: .leading, spacing: 10) {
-                    sectionLabel("Background Fill", "Fill in the background hidden behind the subject (used by both modes)")
+                    sectionLabel("Background Fill", "Rebuild what's hidden behind your subject")
                     Picker("Background Fill", selection: $model.fillMode) {
                         ForEach(FillMode.allCases) { Text($0.title).tag($0) }
                     }
                     .pickerStyle(.segmented)
                     Text(model.fillMode.detail).font(.caption2).foregroundStyle(Theme.faint)
+
+                    // Cloud 模式：提供 Gemini Key 入口（未配置则回退端侧，默认仍离线）。
+                    if model.fillMode == .cloud {
+                        Button { showGeminiSettings = true } label: {
+                            Label(model.canUseGemini ? "Google API connected" : "Set up Google API key",
+                                  systemImage: model.canUseGemini ? "checkmark.seal.fill" : "key.fill")
+                                .font(.caption.weight(.semibold))
+                                .foregroundStyle(model.canUseGemini ? Theme.accentB : Theme.accentC)
+                        }
+                        .buttonStyle(.plain)
+                        if !model.canUseGemini {
+                            Text("Without a key, Cloud falls back to on-device fill.")
+                                .font(.caption2).foregroundStyle(Theme.faint)
+                        }
+                    }
                 }
                 .padding(14)
                 .glassCard(radius: 18)
@@ -123,12 +140,13 @@ private struct IdleView: View {
         .auroraBackground()
         .onAppear { model.refreshGallery() }
         .sheet(isPresented: $showGallery) { ArcusGalleryView(model: model) }
+        .sheet(isPresented: $showGeminiSettings) { GeminiSettingsSheet(model: model) }
     }
 
     private var recentStrip: some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack {
-                sectionLabel("Recent", "Tap to open · long-press to delete")
+                sectionLabel("Recent", "Tap to revisit, hold to delete")
                 Spacer()
                 Button { showGallery = true } label: {
                     HStack(spacing: 3) {
@@ -177,7 +195,7 @@ private struct IdleView: View {
     /// 「从相册」：选照片 + 用示例图（相机之外的次要入口，置于下方）。
     private var librarySection: some View {
         VStack(alignment: .leading, spacing: 10) {
-            sectionLabel("From Your Library", "Or pick a photo and turn it into 3D")
+            sectionLabel("From Your Library", "Bring any photo to life in 3D")
             PhotosPicker(selection: $pickerItem, matching: .images, photoLibrary: .shared()) {
                 Label("Choose Photo", systemImage: "photo.on.rectangle.angled")
             }

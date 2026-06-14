@@ -1,194 +1,18 @@
 {
   "sourceLanguage": "en",
   "strings": {
-    "Something Went Wrong": {
+    "%d%% complete, on device": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Something Went Wrong"
+            "value": "%d%% complete, on device"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "出错了"
-          }
-        }
-      }
-    },
-    "OK": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "OK"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "好"
-          }
-        }
-      }
-    },
-    "Cancel": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Cancel"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "取消"
-          }
-        }
-      }
-    },
-    "Done": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Done"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "完成"
-          }
-        }
-      }
-    },
-    "Rendering Mode": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Rendering Mode"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "渲染方案"
-          }
-        }
-      }
-    },
-    "Choose how to turn your photo into 3D": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Choose how to turn your photo into 3D"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "选择把照片变 3D 的方式"
-          }
-        }
-      }
-    },
-    "Background Fill": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Background Fill"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "背景补全"
-          }
-        }
-      }
-    },
-    "Fill in the background hidden behind the subject (used by both modes)": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Fill in the background hidden behind the subject (used by both modes)"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "补全主体身后被遮挡的背景（两种方案都会用到）"
-          }
-        }
-      }
-    },
-    "Choose Photo": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Choose Photo"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "选择照片"
-          }
-        }
-      }
-    },
-    "Use Sample Image": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Use Sample Image"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "使用示例图"
-          }
-        }
-      }
-    },
-    "No Core ML depth model detected; falling back to pseudo-depth. Run scripts/download_models.sh for the best results.": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "No Core ML depth model detected; falling back to pseudo-depth. Run scripts/download_models.sh for the best results."
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "未检测到 Core ML 深度模型，将用伪深度兜底。运行 scripts/download_models.sh 获取最佳效果。"
-          }
-        }
-      }
-    },
-    "Turn a single photo into an interactive 3D photo\nOn-device · Offline · Zero dependencies": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Turn a single photo into an interactive 3D photo\nOn-device · Offline · Zero dependencies"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "把一张照片变成可交互的 3D 照片\n端侧 · 离线 · 零依赖"
+            "value": "已完成 %d%%，端侧处理"
           }
         }
       }
@@ -225,102 +49,6 @@
         }
       }
     },
-    "Complete This View": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Complete This View"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "补全这一视角"
-          }
-        }
-      }
-    },
-    "View": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "View"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "查看"
-          }
-        }
-      }
-    },
-    "Normal": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Normal"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "正常"
-          }
-        }
-      }
-    },
-    "Depth": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Depth"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "深度"
-          }
-        }
-      }
-    },
-    "Subject": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Subject"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "主体"
-          }
-        }
-      }
-    },
-    "Background": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Background"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "背景"
-          }
-        }
-      }
-    },
     "3D Strength": {
       "localizations": {
         "en": {
@@ -337,130 +65,114 @@
         }
       }
     },
-    "Background Parallax": {
+    "A seamless looping GIF — plays anywhere, easiest to share.": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Background Parallax"
+            "value": "A seamless looping GIF — plays anywhere, easiest to share."
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "背景视差"
+            "value": "无限循环动图，任意平台即开即播，最易分享。"
           }
         }
       }
     },
-    "Foreground Scale": {
+    "AI Fill": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Foreground Scale"
+            "value": "AI Fill"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "前景放大"
+            "value": "AI 补全"
           }
         }
       }
     },
-    "Gyroscope": {
+    "AI-filling the background (MI-GAN, on-device)…": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Gyroscope"
+            "value": "AI-filling the background (MI-GAN, on-device)…"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "陀螺仪"
+            "value": "AI 补全背景（MI-GAN，端侧生成）…"
           }
         }
       }
     },
-    "Auto-Rotate": {
+    "Adjust Again": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Auto-Rotate"
+            "value": "Adjust Again"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "自动旋转"
+            "value": "重新调整"
           }
         }
       }
     },
-    "Background Layering": {
+    "Allow camera access in Settings to take a photo and turn it into a 3D scene.": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Background Layering"
+            "value": "Allow camera access in Settings to take a photo and turn it into a 3D scene."
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "背景分层"
+            "value": "在设置中允许访问相机，即可拍照并生成 3D 照片。"
           }
         }
       }
     },
-    "Pop-Out": {
+    "Animated": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Pop-Out"
+            "value": "Animated"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "出框"
+            "value": "动图"
           }
         }
       }
     },
-    "Dolly · In/Out": {
+    "Animated GIF": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Dolly · In/Out"
+            "value": "Animated GIF"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "推轨 · 前后"
-          }
-        }
-      }
-    },
-    "Focus": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Focus"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "对焦"
+            "value": "动图 GIF"
           }
         }
       }
@@ -497,530 +209,178 @@
         }
       }
     },
-    "Reset": {
+    "Auto-Rotate": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Reset"
+            "value": "Auto-Rotate"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "复位"
+            "value": "自动旋转"
           }
         }
       }
     },
-    "Google API": {
+    "Background": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Google API"
+            "value": "Background"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "Google API"
+            "value": "背景"
           }
         }
       }
     },
-    "Export uses layered (LDI) rendering": {
+    "Background Fill": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Export uses layered (LDI) rendering"
+            "value": "Background Fill"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "导出使用分层(LDI)渲染"
+            "value": "背景补全"
           }
         }
       }
     },
-    "Layered Video": {
+    "Background Layering": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Layered Video"
+            "value": "Background Layering"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "分层视频"
+            "value": "背景分层"
           }
         }
       }
     },
-    "Export Video": {
+    "Background Parallax": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Export Video"
+            "value": "Background Parallax"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "导出视频"
+            "value": "背景视差"
           }
         }
       }
     },
-    "Layered Spatial": {
+    "Baking 3D mesh…": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Layered Spatial"
+            "value": "Baking 3D mesh…"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "分层空间"
+            "value": "烘焙 3D 网格…"
           }
         }
       }
     },
-    "Spatial Photo": {
+    "Bring any photo to life in 3D": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Spatial Photo"
+            "value": "Bring any photo to life in 3D"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "空间照片"
+            "value": "把相册里的任意照片变成 3D"
           }
         }
       }
     },
-    "Hold to Compare": {
+    "Building 3D Gaussians…": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Hold to Compare"
+            "value": "Building 3D Gaussians…"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "按住对比"
+            "value": "构建 3D 高斯…"
           }
         }
       }
     },
-    "Save to Photos": {
+    "Camera Access Needed": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Save to Photos"
+            "value": "Camera Access Needed"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "保存到相册"
+            "value": "需要相机权限"
           }
         }
       }
     },
-    "Adjust Again": {
+    "Camera Unavailable": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Adjust Again"
+            "value": "Camera Unavailable"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "重新调整"
+            "value": "相机不可用"
           }
         }
       }
     },
-    "Share File": {
+    "Cancel": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Share File"
+            "value": "Cancel"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "分享文件"
-          }
-        }
-      }
-    },
-    "Enable Gemini Cloud Repair": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Enable Gemini Cloud Repair"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "启用 Gemini 云端修复"
-          }
-        }
-      }
-    },
-    "Google API Key": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Google API Key"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Google API Key"
-          }
-        }
-      }
-    },
-    "Paste your Gemini API Key": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Paste your Gemini API Key"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "粘贴你的 Gemini API Key"
-          }
-        }
-      }
-    },
-    "The key is stored only on this device (UserDefaults), and only the current frame is uploaded when you tap “Complete This View.”": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "The key is stored only on this device (UserDefaults), and only the current frame is uploaded when you tap “Complete This View.”"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Key 只保存在本机（UserDefaults），仅在你点「补全这一视角」时上传当前帧。"
-          }
-        }
-      }
-    },
-    "Model": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Model"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "模型"
-          }
-        }
-      }
-    },
-    "How to get an API Key?": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "How to get an API Key?"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "如何获取 API Key？"
-          }
-        }
-      }
-    },
-    "Offline first: it works without a key — “Complete This View” uses on-device LaMa/MI-GAN, so your photo never leaves the device.": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Offline first: it works without a key — “Complete This View” uses on-device LaMa/MI-GAN, so your photo never leaves the device."
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "离线优先：不填 Key 也能用——「补全这一视角」会用端侧 LaMa/MI-GAN 修复，照片不出设备。"
-          }
-        }
-      }
-    },
-    "Cloud Repair": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Cloud Repair"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "云端修复"
-          }
-        }
-      }
-    },
-    "View Repair": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "View Repair"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "视角修复"
-          }
-        }
-      }
-    },
-    "Turn the reveals, stretches, and tears from a new angle into a clean finished photo": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Turn the reveals, stretches, and tears from a new angle into a clean finished photo"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "把换角度后的露出 / 拉伸 / 破碎修成干净成片"
-          }
-        }
-      }
-    },
-    "Layered Parallax": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Layered Parallax"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "分层视差"
-          }
-        }
-      }
-    },
-    "Gaussian Splatting": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Gaussian Splatting"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "高斯泼溅"
-          }
-        }
-      }
-    },
-    "Depth-layered mesh · Real-time · Great for subtle parallax / pop-out / export": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Depth-layered mesh · Real-time · Great for subtle parallax / pop-out / export"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "深度分层网格 · 实时 · 适合小幅视差/出框/导出"
-          }
-        }
-      }
-    },
-    "On-device 3D Gaussian splatting · True 3D novel views · Fully offline, zero dependencies": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "On-device 3D Gaussian splatting · True 3D novel views · Fully offline, zero dependencies"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "端侧 3D 高斯泼溅 · 真三维新视角 · 全离线零依赖"
-          }
-        }
-      }
-    },
-    "Fast": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Fast"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "快速"
-          }
-        }
-      }
-    },
-    "AI Fill": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "AI Fill"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "AI 补全"
-          }
-        }
-      }
-    },
-    "Vertical continuation · Depth-gated · Real-time": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Vertical continuation · Depth-gated · Real-time"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "竖直延续 · 深度门控 · 实时"
-          }
-        }
-      }
-    },
-    "Content-aware · More coherent · Slower (~10+ seconds)": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Content-aware · More coherent · Slower (~10+ seconds)"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "内容感知 · 更连贯 · 较慢（约十几秒）"
-          }
-        }
-      }
-    },
-    "MI-GAN neural generation · On-device · Slower processing": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "MI-GAN neural generation · On-device · Slower processing"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "MI-GAN 神经生成 · 端侧 · 处理较慢"
-          }
-        }
-      }
-    },
-    "Unable to read the selected image.": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Unable to read the selected image."
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "无法读取所选图片。"
-          }
-        }
-      }
-    },
-    "Preparing…": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Preparing…"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "准备…"
-          }
-        }
-      }
-    },
-    "Processing failed: %@": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Processing failed: %@"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "处理失败：%@"
+            "value": "取消"
           }
         }
       }
@@ -1041,18 +401,1282 @@
         }
       }
     },
-    "Depth: %1$@ · Subject: %2$@ · Fill: %3$@": {
+    "Choose Photo": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Depth: %1$@ · Subject: %2$@ · Fill: %3$@"
+            "value": "Choose Photo"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "深度：%1$@ · 主体：%2$@ · 补全：%3$@"
+            "value": "选择照片"
+          }
+        }
+      }
+    },
+    "Close": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Close"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "关闭"
+          }
+        }
+      }
+    },
+    "Cloud": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cloud"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "云端"
+          }
+        }
+      }
+    },
+    "Cloud Repair": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cloud Repair"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "云端修复"
+          }
+        }
+      }
+    },
+    "Cloud-filling the background (Gemini)…": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cloud-filling the background (Gemini)…"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "云端补全背景（Gemini）…"
+          }
+        }
+      }
+    },
+    "Complete This View": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Complete This View"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "补全这一视角"
+          }
+        }
+      }
+    },
+    "Completed (%@)": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Completed (%@)"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已补全（%@）"
+          }
+        }
+      }
+    },
+    "Content-aware, more coherent but slower (~10+ s)": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Content-aware, more coherent but slower (~10+ s)"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "内容感知，更连贯但较慢（约十几秒）"
+          }
+        }
+      }
+    },
+    "Couldn't load this photo — it may have been cleared.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Couldn't load this photo — it may have been cleared."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "无法读取这张照片，可能已被清理。"
+          }
+        }
+      }
+    },
+    "Delete": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Delete"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "删除"
+          }
+        }
+      }
+    },
+    "Delete selected photos?": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Delete selected photos?"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "删除选中的照片？"
+          }
+        }
+      }
+    },
+    "Depth": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Depth"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "深度"
+          }
+        }
+      }
+    },
+    "Depth %1$@, subject %2$@, fill %3$@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Depth %1$@, subject %2$@, fill %3$@"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "深度 %1$@，主体 %2$@，补全 %3$@"
+          }
+        }
+      }
+    },
+    "Depth On": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Depth On"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "深度已开启"
+          }
+        }
+      }
+    },
+    "Depth-threshold approximation": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Depth-threshold approximation"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "深度阈值近似"
+          }
+        }
+      }
+    },
+    "Deselect All": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Deselect All"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "取消全选"
+          }
+        }
+      }
+    },
+    "Dolly (In/Out)": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dolly (In/Out)"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "推轨（前后）"
+          }
+        }
+      }
+    },
+    "Done": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Done"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "完成"
+          }
+        }
+      }
+    },
+    "Drag to look around, pinch to zoom, double-tap to reset": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Drag to look around, pinch to zoom, double-tap to reset"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "拖动改变视角，双指缩放，双击复位"
+          }
+        }
+      }
+    },
+    "Enable Gemini Cloud Repair": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Enable Gemini Cloud Repair"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "启用 Gemini 云端修复"
+          }
+        }
+      }
+    },
+    "Estimating depth…": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Estimating depth…"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "估计深度…"
+          }
+        }
+      }
+    },
+    "Export Video": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Export Video"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "导出视频"
+          }
+        }
+      }
+    },
+    "Export uses layered (LDI) rendering": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Export uses layered (LDI) rendering"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "导出使用分层(LDI)渲染"
+          }
+        }
+      }
+    },
+    "Failed to export spatial photo: %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Failed to export spatial photo: %@"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "导出空间照片失败：%@"
+          }
+        }
+      }
+    },
+    "Failed to export video: %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Failed to export video: %@"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "导出视频失败：%@"
+          }
+        }
+      }
+    },
+    "Failed to save to Photos: %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Failed to save to Photos: %@"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "保存到相册失败：%@"
+          }
+        }
+      }
+    },
+    "Fast": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fast"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "快速"
+          }
+        }
+      }
+    },
+    "Filling in the revealed areas…": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Filling in the revealed areas…"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "补全露出的区域…"
+          }
+        }
+      }
+    },
+    "Filling the background behind the subject…": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Filling the background behind the subject…"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "补全主体背后的背景…"
+          }
+        }
+      }
+    },
+    "Focus": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Focus"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "对焦"
+          }
+        }
+      }
+    },
+    "Foreground Scale": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Foreground Scale"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "前景放大"
+          }
+        }
+      }
+    },
+    "Foreground subject instance": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Foreground subject instance"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "前景主体实例"
+          }
+        }
+      }
+    },
+    "From Your Library": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "From Your Library"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "从相册"
+          }
+        }
+      }
+    },
+    "GIF export failed: %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "GIF export failed: %@"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "导出动图失败：%@"
+          }
+        }
+      }
+    },
+    "Gaussian Splatting": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gaussian Splatting"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "高斯泼溅"
+          }
+        }
+      }
+    },
+    "Gemini cloud generation, needs an API key, uploads each photo": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gemini cloud generation, needs an API key, uploads each photo"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gemini 云端生成，需要 API Key，每张照片都会上传"
+          }
+        }
+      }
+    },
+    "Google API": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Google API"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Google API"
+          }
+        }
+      }
+    },
+    "Google API Key": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Google API Key"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Google API Key"
+          }
+        }
+      }
+    },
+    "Google API connected": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Google API connected"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已连接 Google API"
+          }
+        }
+      }
+    },
+    "Gyroscope": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gyroscope"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "陀螺仪"
+          }
+        }
+      }
+    },
+    "High-quality background fill (PatchMatch, depth-aware, slower)…": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "High-quality background fill (PatchMatch, depth-aware, slower)…"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "高质量补全背景（PatchMatch，深度感知，较慢）…"
+          }
+        }
+      }
+    },
+    "Hold to Compare": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hold to Compare"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "按住对比"
+          }
+        }
+      }
+    },
+    "How to get an API Key?": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "How to get an API Key?"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "如何获取 API Key？"
+          }
+        }
+      }
+    },
+    "Layered Parallax": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Layered Parallax"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "分层视差"
+          }
+        }
+      }
+    },
+    "Layered Spatial": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Layered Spatial"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "分层空间"
+          }
+        }
+      }
+    },
+    "Layered Video": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Layered Video"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "分层视频"
+          }
+        }
+      }
+    },
+    "Live Photo": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Live Photo"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "实况照片"
+          }
+        }
+      }
+    },
+    "Live Photo export failed: %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Live Photo export failed: %@"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "导出实况照片失败：%@"
+          }
+        }
+      }
+    },
+    "MI-GAN neural generation, on-device, slower": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "MI-GAN neural generation, on-device, slower"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "MI-GAN 神经生成，端侧运行，处理较慢"
+          }
+        }
+      }
+    },
+    "Model": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Model"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "模型"
+          }
+        }
+      }
+    },
+    "New Photo": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "New Photo"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "换一张"
+          }
+        }
+      }
+    },
+    "No 3D photos yet": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No 3D photos yet"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "还没有 3D 作品"
+          }
+        }
+      }
+    },
+    "No Core ML depth model detected; falling back to pseudo-depth. Run scripts/download_models.sh for the best results.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No Core ML depth model detected; falling back to pseudo-depth. Run scripts/download_models.sh for the best results."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "未检测到 Core ML 深度模型，将用伪深度兜底。运行 scripts/download_models.sh 获取最佳效果。"
+          }
+        }
+      }
+    },
+    "Normal": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Normal"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "正常"
+          }
+        }
+      }
+    },
+    "OK": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "OK"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "好"
+          }
+        }
+      }
+    },
+    "Offline first: it works without a key — “Complete This View” uses on-device LaMa/MI-GAN, so your photo never leaves the device.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Offline first: it works without a key — “Complete This View” uses on-device LaMa/MI-GAN, so your photo never leaves the device."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "离线优先：不填 Key 也能用——「补全这一视角」会用端侧 LaMa/MI-GAN 修复，照片不出设备。"
+          }
+        }
+      }
+    },
+    "On-device": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "On-device"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "端侧"
+          }
+        }
+      }
+    },
+    "On-device 3D Gaussian splatting with true novel views, fully offline and dependency-free": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "On-device 3D Gaussian splatting with true novel views, fully offline and dependency-free"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "端侧 3D 高斯泼溅，呈现真三维新视角，全程离线、零依赖"
+          }
+        }
+      }
+    },
+    "Open Camera": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Open Camera"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "打开相机"
+          }
+        }
+      }
+    },
+    "Open Settings": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Open Settings"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "打开设置"
+          }
+        }
+      }
+    },
+    "Original": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Original"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "原图"
+          }
+        }
+      }
+    },
+    "Parallax Video": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Parallax Video"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "视差视频"
+          }
+        }
+      }
+    },
+    "Paste your Gemini API Key": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Paste your Gemini API Key"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "粘贴你的 Gemini API Key"
+          }
+        }
+      }
+    },
+    "PatchMatch+depth (MI-GAN unavailable)": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "PatchMatch+depth (MI-GAN unavailable)"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "PatchMatch+depth(MI-GAN 不可用)"
+          }
+        }
+      }
+    },
+    "Person segmentation": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Person segmentation"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "人物分割"
+          }
+        }
+      }
+    },
+    "Pick a photo below to create a 3D scene": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pick a photo below to create a 3D scene"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "在下方选一张照片来生成 3D"
+          }
+        }
+      }
+    },
+    "Pick how your photo comes to life": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pick how your photo comes to life"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "选择照片转 3D 的方式"
+          }
+        }
+      }
+    },
+    "Pop-Out": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pop-Out"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "出框"
+          }
+        }
+      }
+    },
+    "Preparing…": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Preparing…"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "准备…"
+          }
+        }
+      }
+    },
+    "Preprocessing image…": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Preprocessing image…"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "预处理图像…"
+          }
+        }
+      }
+    },
+    "Processing failed: %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Processing failed: %@"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "处理失败：%@"
+          }
+        }
+      }
+    },
+    "Pseudo-depth (fallback)": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pseudo-depth (fallback)"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "伪深度(兜底)"
+          }
+        }
+      }
+    },
+    "Real-time depth-layered mesh, great for subtle parallax, pop-out, and export": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Real-time depth-layered mesh, great for subtle parallax, pop-out, and export"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "实时深度分层网格，适合小幅视差、出框与导出"
+          }
+        }
+      }
+    },
+    "Rebuild what's hidden behind your subject": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Rebuild what's hidden behind your subject"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "重建主体身后被遮挡的画面"
+          }
+        }
+      }
+    },
+    "Recent": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Recent"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "最近作品"
+          }
+        }
+      }
+    },
+    "Rendering Live Photo…": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Rendering Live Photo…"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "正在渲染实况照片…"
+          }
+        }
+      }
+    },
+    "Rendering Mode": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Rendering Mode"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "渲染方案"
+          }
+        }
+      }
+    },
+    "Rendering animation…": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Rendering animation…"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "正在渲染动图…"
+          }
+        }
+      }
+    },
+    "Rendering parallax video…": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Rendering parallax video…"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "正在渲染视差视频…"
+          }
+        }
+      }
+    },
+    "Rendering spatial photo…": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Rendering spatial photo…"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "正在渲染空间照片…"
           }
         }
       }
@@ -1089,786 +1713,50 @@
         }
       }
     },
-    "View repair failed. Please try again.": {
+    "Reset": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "View repair failed. Please try again."
+            "value": "Reset"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "视角修复失败，请重试。"
+            "value": "复位"
           }
         }
       }
     },
-    "Saved to Photos": {
+    "Reshoot complete": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Saved to Photos"
+            "value": "Reshoot complete"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "已保存到相册"
+            "value": "重拍完成"
           }
         }
       }
     },
-    "Failed to save to Photos: %@": {
+    "Reshoot from a new angle": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Failed to save to Photos: %@"
+            "value": "Reshoot from a new angle"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "保存到相册失败：%@"
-          }
-        }
-      }
-    },
-    "Rendering parallax video…": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Rendering parallax video…"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "正在渲染视差视频…"
-          }
-        }
-      }
-    },
-    "Failed to export video: %@": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Failed to export video: %@"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "导出视频失败：%@"
-          }
-        }
-      }
-    },
-    "Rendering spatial photo…": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Rendering spatial photo…"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "正在渲染空间照片…"
-          }
-        }
-      }
-    },
-    "Failed to export spatial photo: %@": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Failed to export spatial photo: %@"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "导出空间照片失败：%@"
-          }
-        }
-      }
-    },
-    "Filling in the revealed areas…": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Filling in the revealed areas…"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "补全露出的区域…"
-          }
-        }
-      }
-    },
-    "Original": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Original"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "原图"
-          }
-        }
-      }
-    },
-    "Completed · %@": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Completed · %@"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "已补全 · %@"
-          }
-        }
-      }
-    },
-    "On-device": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "On-device"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "端侧"
-          }
-        }
-      }
-    },
-    "Tilt your phone · Drag the image · Double-tap to reset": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Tilt your phone · Drag the image · Double-tap to reset"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "倾斜手机 · 拖动画面 · 双击复位"
-          }
-        }
-      }
-    },
-    "Reshoot · Completed": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Reshoot · Completed"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "重拍 · 已补全"
-          }
-        }
-      }
-    },
-    "Reshoot · Change the camera angle": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Reshoot · Change the camera angle"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "重拍 · 换个机位"
-          }
-        }
-      }
-    },
-    "Drag with one finger to change the view · Pinch to zoom · Double-tap to reset": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Drag with one finger to change the view · Pinch to zoom · Double-tap to reset"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "单指拖动改变视角 · 双指缩放 · 双击复位"
-          }
-        }
-      }
-    },
-    "Parallax Video": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Parallax Video"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "视差视频"
-          }
-        }
-      }
-    },
-    "Save to Photos or share it. A looping parallax clip, great for social sharing.": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Save to Photos or share it. A looping parallax clip, great for social sharing."
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "可保存到相册或分享。循环视差，适合社交分享。"
-          }
-        }
-      }
-    },
-    "Stereo HEIC — AirDrop it to Apple Vision Pro to view as a spatial photo.": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Stereo HEIC — AirDrop it to Apple Vision Pro to view as a spatial photo."
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "立体 HEIC，AirDrop 到 Apple Vision Pro 可作为空间照片查看。"
-          }
-        }
-      }
-    },
-    "%d%% · On-device processing": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%d%% · On-device processing"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%d%% · 端侧处理"
-          }
-        }
-      }
-    },
-    "Preprocessing image…": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Preprocessing image…"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "预处理图像…"
-          }
-        }
-      }
-    },
-    "Estimating depth…": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Estimating depth…"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "估计深度…"
-          }
-        }
-      }
-    },
-    "Segmenting subject…": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Segmenting subject…"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "分割主体…"
-          }
-        }
-      }
-    },
-    "Filling the background behind the subject…": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Filling the background behind the subject…"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "补全主体背后的背景…"
-          }
-        }
-      }
-    },
-    "AI-filling the background (MI-GAN, on-device)…": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "AI-filling the background (MI-GAN, on-device)…"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "AI 补全背景（MI-GAN，端侧生成）…"
-          }
-        }
-      }
-    },
-    "High-quality background fill (PatchMatch · depth-aware, slower)…": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "High-quality background fill (PatchMatch · depth-aware, slower)…"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "高质量补全背景（PatchMatch · 深度感知，较慢）…"
-          }
-        }
-      }
-    },
-    "Baking 3D mesh…": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Baking 3D mesh…"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "烘焙 3D 网格…"
-          }
-        }
-      }
-    },
-    "Building 3D Gaussians…": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Building 3D Gaussians…"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "构建 3D 高斯…"
-          }
-        }
-      }
-    },
-    "Pseudo-depth (fallback)": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Pseudo-depth (fallback)"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "伪深度(兜底)"
-          }
-        }
-      }
-    },
-    "Foreground subject instance": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Foreground subject instance"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "前景主体实例"
-          }
-        }
-      }
-    },
-    "Person segmentation": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Person segmentation"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "人物分割"
-          }
-        }
-      }
-    },
-    "Depth-threshold approximation": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Depth-threshold approximation"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "深度阈值近似"
-          }
-        }
-      }
-    },
-    "PatchMatch+depth (MI-GAN unavailable)": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "PatchMatch+depth (MI-GAN unavailable)"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "PatchMatch+depth(MI-GAN 不可用)"
-          }
-        }
-      }
-    },
-    "Delete": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Delete"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "删除"
-          }
-        }
-      }
-    },
-    "Spatial Gallery": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Spatial Gallery"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "空间画廊"
-          }
-        }
-      }
-    },
-    "No 3D photos yet": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "No 3D photos yet"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "还没有 3D 作品"
-          }
-        }
-      }
-    },
-    "Your 3D photos will appear here": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Your 3D photos will appear here"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "处理一张照片后会出现在这里"
-          }
-        }
-      }
-    },
-    "Recent": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Recent"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "最近作品"
-          }
-        }
-      }
-    },
-    "Tap to reopen": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Tap to reopen"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "点按重新打开"
-          }
-        }
-      }
-    },
-    "See All": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "See All"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "查看全部"
-          }
-        }
-      }
-    },
-    "Couldn't load this photo — it may have been cleared.": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Couldn't load this photo — it may have been cleared."
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "无法读取这张照片，可能已被清理。"
-          }
-        }
-      }
-    },
-    "Animated GIF": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Animated GIF"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "动图 GIF"
-          }
-        }
-      }
-    },
-    "New Photo": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "New Photo"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "换一张"
-          }
-        }
-      }
-    },
-    "Animated": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Animated"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "动图"
-          }
-        }
-      }
-    },
-    "Rendering animation…": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Rendering animation…"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "正在渲染动图…"
-          }
-        }
-      }
-    },
-    "GIF export failed: %@": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "GIF export failed: %@"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "导出动图失败：%@"
-          }
-        }
-      }
-    },
-    "A seamless looping GIF — plays anywhere, easiest to share.": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "A seamless looping GIF — plays anywhere, easiest to share."
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "无限循环动图，任意平台即开即播，最易分享。"
-          }
-        }
-      }
-    },
-    "Live Photo": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Live Photo"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "实况照片"
-          }
-        }
-      }
-    },
-    "Rendering Live Photo…": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Rendering Live Photo…"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "正在渲染实况照片…"
-          }
-        }
-      }
-    },
-    "Live Photo export failed: %@": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Live Photo export failed: %@"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "导出实况照片失败：%@"
+            "value": "换个机位重拍"
           }
         }
       }
@@ -1889,130 +1777,290 @@
         }
       }
     },
-    "Tap to open · long-press to delete": {
+    "Save to Photos": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Tap to open · long-press to delete"
+            "value": "Save to Photos"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "点按重开 · 长按删除"
+            "value": "保存到相册"
           }
         }
       }
     },
-    "Turn a photo into an interactive 3D photo\nOn-device · Offline · Zero-dependency": {
+    "Save to Photos or share it. A looping parallax clip, great for social sharing.": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Turn a photo into an interactive 3D photo\nOn-device · Offline · Zero-dependency"
+            "value": "Save to Photos or share it. A looping parallax clip, great for social sharing."
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "把一张照片变成可交互的 3D 照片\n端侧 · 离线 · 零依赖"
+            "value": "可保存到相册或分享。循环视差，适合社交分享。"
           }
         }
       }
     },
-    "Take Photo": {
+    "Saved to Photos": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Take Photo"
+            "value": "Saved to Photos"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "拍照"
+            "value": "已保存到相册"
           }
         }
       }
     },
-    "Depth On": {
+    "See All": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Depth On"
+            "value": "See All"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "深度已开启"
+            "value": "查看全部"
           }
         }
       }
     },
-    "Camera Access Needed": {
+    "Segmenting subject…": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Camera Access Needed"
+            "value": "Segmenting subject…"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "需要相机权限"
+            "value": "分割主体…"
           }
         }
       }
     },
-    "Allow camera access in Settings to take a photo and turn it into a 3D scene.": {
+    "Select": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Allow camera access in Settings to take a photo and turn it into a 3D scene."
+            "value": "Select"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "在设置中允许访问相机，即可拍照并生成 3D 照片。"
+            "value": "选择"
           }
         }
       }
     },
-    "Open Settings": {
+    "Select All": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Open Settings"
+            "value": "Select All"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "打开设置"
+            "value": "全选"
           }
         }
       }
     },
-    "Open Camera": {
+    "Selected": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Open Camera"
+            "value": "Selected"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "打开相机"
+            "value": "已选"
+          }
+        }
+      }
+    },
+    "Set up Google API key": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Set up Google API key"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "设置 Google API Key"
+          }
+        }
+      }
+    },
+    "Share File": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Share File"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "分享文件"
+          }
+        }
+      }
+    },
+    "Shoot to create an interactive 3D photo": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Shoot to create an interactive 3D photo"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "拍一张，生成可交互的 3D 照片"
+          }
+        }
+      }
+    },
+    "Something Went Wrong": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Something Went Wrong"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "出错了"
+          }
+        }
+      }
+    },
+    "Spatial Gallery": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Spatial Gallery"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "空间画廊"
+          }
+        }
+      }
+    },
+    "Spatial Photo": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Spatial Photo"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "空间照片"
+          }
+        }
+      }
+    },
+    "Stereo HEIC — AirDrop it to Apple Vision Pro to view as a spatial photo.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Stereo HEIC — AirDrop it to Apple Vision Pro to view as a spatial photo."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "立体 HEIC，AirDrop 到 Apple Vision Pro 可作为空间照片查看。"
+          }
+        }
+      }
+    },
+    "Subject": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Subject"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "主体"
+          }
+        }
+      }
+    },
+    "Tap to reopen": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tap to reopen"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "点按重新打开"
+          }
+        }
+      }
+    },
+    "Tap to revisit, hold to delete": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tap to revisit, hold to delete"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "点按回看，长按删除"
           }
         }
       }
@@ -2033,82 +2081,178 @@
         }
       }
     },
-    "Camera Unavailable": {
+    "The key is stored only on this device (UserDefaults), and only the current frame is uploaded when you tap “Complete This View.”": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Camera Unavailable"
+            "value": "The key is stored only on this device (UserDefaults), and only the current frame is uploaded when you tap “Complete This View.”"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "相机不可用"
+            "value": "Key 只保存在本机（UserDefaults），仅在你点「补全这一视角」时上传当前帧。"
           }
         }
       }
     },
-    "Pick a photo below to create a 3D scene": {
+    "Tilt or drag to look around, double-tap to reset": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Pick a photo below to create a 3D scene"
+            "value": "Tilt or drag to look around, double-tap to reset"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "在下方选一张照片来生成 3D"
+            "value": "倾斜或拖动改变视角，双击复位"
           }
         }
       }
     },
-    "From Your Library": {
+    "Turn the reveals, stretches, and tears from a new angle into a clean finished photo": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "From Your Library"
+            "value": "Turn the reveals, stretches, and tears from a new angle into a clean finished photo"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "从相册"
+            "value": "把换角度后的露出、拉伸与破碎修成一张干净成片"
           }
         }
       }
     },
-    "Or pick a photo and turn it into 3D": {
+    "Unable to read the selected image.": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Or pick a photo and turn it into 3D"
+            "value": "Unable to read the selected image."
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "或选一张照片，把它变成 3D"
+            "value": "无法读取所选图片。"
           }
         }
       }
     },
-    "Shoot to create an interactive 3D photo": {
+    "Use Sample Image": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Shoot to create an interactive 3D photo"
+            "value": "Use Sample Image"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "拍一张，生成可交互的 3D 照片"
+            "value": "使用示例图"
+          }
+        }
+      }
+    },
+    "Vertical continuation, depth-gated, real-time": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vertical continuation, depth-gated, real-time"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "竖直延续，深度门控，实时"
+          }
+        }
+      }
+    },
+    "View": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "View"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "查看"
+          }
+        }
+      }
+    },
+    "View Repair": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "View Repair"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "视角修复"
+          }
+        }
+      }
+    },
+    "View repair failed. Please try again.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "View repair failed. Please try again."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "视角修复失败，请重试。"
+          }
+        }
+      }
+    },
+    "Without a key, Cloud falls back to on-device fill.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Without a key, Cloud falls back to on-device fill."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "未填 Key 时，云端会回退为端侧补全。"
+          }
+        }
+      }
+    },
+    "Your 3D photos will appear here": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Your 3D photos will appear here"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "处理一张照片后会出现在这里"
           }
         }
       }
