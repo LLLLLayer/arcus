@@ -88,66 +88,89 @@ struct ApertureMark: View {
     }
 }
 
-/// 多边形孔（N 边形，半径 = scale·R，可旋转），用于光圈内缘描边等，可动画。
-struct PolyHole: Shape {
-    var sides: Int = 6
-    var scale: CGFloat
-    var rotationDegrees: Double
+/// 单片光圈叶片：直边三角板，按 index 绕中心旋转、与相邻叶片交叠成风车——还原 App 图标里的相机光圈。
+/// `openR` = 开口内切半径（到多边形边），`overlap` = 额外扫角(度)使叶片交叠。可动画（openR/swirl）。
+struct BladeTriangle: Shape {
+    var openR: CGFloat
+    var swirl: Double
+    var rim: CGFloat
+    var sides: Int
+    var index: Int
+    var overlap: Double
     var animatableData: AnimatablePair<CGFloat, Double> {
-        get { AnimatablePair(scale, rotationDegrees) }
-        set { scale = newValue.first; rotationDegrees = newValue.second }
+        get { AnimatablePair(openR, swirl) }
+        set { openR = newValue.first; swirl = newValue.second }
     }
     func path(in rect: CGRect) -> Path {
         let c = CGPoint(x: rect.midX, y: rect.midY)
         let n = max(3, sides)
-        let r = min(rect.width, rect.height) / 2 * scale
-        var p = Path()
-        for i in 0..<n {
-            let a = (Double(i) * 360.0 / Double(n) - 90 + rotationDegrees) * .pi / 180
-            let pt = CGPoint(x: c.x + r * CGFloat(cos(a)), y: c.y + r * CGFloat(sin(a)))
-            if i == 0 { p.move(to: pt) } else { p.addLine(to: pt) }
+        let half = 180.0 / Double(n)
+        let base = Double(index) * 360.0 / Double(n) + swirl
+        let rv = openR / CGFloat(cos(half * .pi / 180))      // 多边形顶点半径
+        func polar(_ r: CGFloat, _ deg: Double) -> CGPoint {
+            let a = (deg - 90) * .pi / 180
+            return CGPoint(x: c.x + r * CGFloat(cos(a)), y: c.y + r * CGFloat(sin(a)))
         }
+        let A = polar(rv, base - half)                       // 开口顶点
+        let B = polar(rv, base + half)                       // 下一个开口顶点（内边 A→B）
+        let aStart = base + half                             // 叶片前缘（径向出到边缘）
+        let aEnd = base - half - overlap                     // 沿边缘扫回，制造交叠
+        var p = Path()
+        p.move(to: A)
+        p.addLine(to: B)
+        p.addLine(to: polar(rim, aStart))                    // B 径向出到镜筒边缘
+        let steps = 14
+        for k in 1...steps {                                 // 外缘沿镜筒圆弧（折线近似），填满到边缘、不留缝
+            let ang = aStart + (aEnd - aStart) * Double(k) / Double(steps)
+            p.addLine(to: polar(rim, ang))
+        }
+        p.addLine(to: A)                                     // 回到内侧顶点
         p.closeSubpath()
         return p
     }
 }
 
-/// 机械相机光圈：`progress` 0→1 时，多边形开口一边旋转一边张开（叶片直边收向边缘），露出中心——
-/// 像真实镜头光圈打开。金属镜筒 + 叶片内缘阴影 + 直边，机械感强；配 spring 有精准的开合动感。
-struct IrisAperture: View {
+/// 还原 App 图标的相机光圈：深色玻璃镜筒 + N 片交叠的彩虹直边叶片 + 中心玻璃。
+/// `progress` 0→1：开口扩大、叶片收向边缘并旋转 → 像真实镜头光圈打开。
+struct BladeIris: View {
     var progress: Double
-    var sides: Int = 7   // 7 片叶（奇数叶光圈更像真实镜头）
+    var sides: Int = 6
 
     var body: some View {
         GeometryReader { geo in
             let s = min(geo.size.width, geo.size.height)
-            let hole = 0.16 + 0.92 * CGFloat(progress)   // 闭合 → 张开（略超出边缘，叶片全收）
-            let rot = 12 + 64 * progress                 // 机械旋转开合
+            let rim = s * 0.45
+            let openR = s * (0.13 + 0.34 * CGFloat(progress))   // 开口：闭合(小，似图标) → 张开
+            let swirl = 8 + 46 * progress
+            let n = max(3, sides)
             ZStack {
-                // 金属镜筒外圈
+                // 深色玻璃镜筒
                 Circle()
-                    .strokeBorder(LinearGradient(colors: [Color(white: 0.34), Color(white: 0.10), Color(white: 0.22)],
-                                                 startPoint: .topLeading, endPoint: .bottomTrailing),
-                                  lineWidth: s * 0.06)
-                    .background(Circle().fill(Color(white: 0.06)))
-                // 彩虹叶片环（中心多边形孔随 progress 张开；even-odd 得环带）
-                ApertureRing(holeScale: hole, swirl: rot, sides: sides)
-                    .fill(AngularGradient(gradient: Gradient(colors: Theme.rainbowColors),
-                                          center: .center, angle: .degrees(rot)),
-                          style: FillStyle(eoFill: true))
-                // 叶片层叠的径向阴影（金属感）：内深外浅
-                ApertureRing(holeScale: hole, swirl: rot, sides: sides)
-                    .fill(RadialGradient(colors: [.black.opacity(0.55), .clear],
-                                         center: .center, startRadius: s * hole * 0.5, endRadius: s * 0.5),
-                          style: FillStyle(eoFill: true))
-                    .blendMode(.multiply)
-                // 叶片内缘：深色厚度阴影 + 细高光，做出机械叶片层叠
-                PolyHole(sides: sides, scale: hole, rotationDegrees: rot)
-                    .stroke(.black.opacity(0.55), lineWidth: s * 0.02)
-                PolyHole(sides: sides, scale: hole, rotationDegrees: rot)
-                    .stroke(.white.opacity(0.22), lineWidth: max(1, s * 0.006))
-                // 外圈细高光
-                Circle().strokeBorder(.white.opacity(0.20), lineWidth: max(1, s * 0.01))
+                    .fill(RadialGradient(colors: [Color(white: 0.17), Color(white: 0.03)],
+                                         center: .init(x: 0.42, y: 0.36), startRadius: 0, endRadius: s * 0.5))
+                // 交叠叶片（按 index 顺序画，后画的压住前一片 → 风车）
+                ForEach(0..<n, id: \.self) { i in
+                    let col = Theme.rainbowColors[i % (Theme.rainbowColors.count - 1)]
+                    BladeTriangle(openR: openR, swirl: swirl, rim: rim, sides: sides, index: i, overlap: 50)
+                        .fill(LinearGradient(colors: [col.opacity(0.98), col.opacity(0.74)],
+                                             startPoint: .top, endPoint: .bottom))
+                        .overlay(
+                            BladeTriangle(openR: openR, swirl: swirl, rim: rim, sides: sides, index: i, overlap: 50)
+                                .stroke(.black.opacity(0.22), lineWidth: max(1, s * 0.004))
+                        )
+                }
+                .clipShape(Circle().inset(by: s * 0.045))   // 叶片裁进镜筒内
+                // 中心玻璃（开时缩小淡出，让出镜头）
+                Circle()
+                    .fill(RadialGradient(colors: [.white, Theme.accentB.opacity(0.75), .clear],
+                                         center: .init(x: 0.4, y: 0.35), startRadius: 0, endRadius: openR))
+                    .frame(width: openR * 1.15, height: openR * 1.15)
+                    .opacity(1 - progress * 0.92)
+                // 镜筒：金属边 + 细高光
+                Circle().strokeBorder(LinearGradient(colors: [Color(white: 0.42), Color(white: 0.05), Color(white: 0.28)],
+                                                     startPoint: .topLeading, endPoint: .bottomTrailing),
+                                      lineWidth: s * 0.05)
+                Circle().strokeBorder(.white.opacity(0.20), lineWidth: max(1, s * 0.008))
             }
             .frame(width: s, height: s)
             .position(x: geo.size.width / 2, y: geo.size.height / 2)

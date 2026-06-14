@@ -282,8 +282,8 @@ struct CameraHomeCard: View {
 
     private var apertureButton: some View {
         Button(action: openCamera) {
-            IrisAperture(progress: openProgress)
-                .frame(width: 162, height: 162)
+            BladeIris(progress: openProgress)
+                .frame(width: 168, height: 168)
                 .shadow(color: Theme.accentA.opacity(0.45), radius: 22)
         }
         .buttonStyle(.plain)
@@ -348,9 +348,9 @@ struct CameraHomeCard: View {
     private var shutterButton: some View {
         Button { capture() } label: {
             ZStack {
-                ApertureMark(swirl: 16, holeScale: 0.52, centerGlass: false)
-                    .frame(width: 78, height: 78)
-                Circle().fill(.white).frame(width: 46, height: 46)
+                BladeIris(progress: 0.34)
+                    .frame(width: 80, height: 80)
+                Circle().fill(.white).frame(width: 44, height: 44)
                     .scaleEffect(cam.isCapturing ? 0.82 : 1)
             }
         }

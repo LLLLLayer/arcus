@@ -160,7 +160,7 @@ private struct IdleView: View {
     private var captionRow: some View {
         VStack(spacing: 6) {
             HStack(spacing: 9) {
-                ApertureMark(swirl: 16, holeScale: 0.46)
+                BladeIris(progress: 0.2)
                     .frame(width: 30, height: 30)
                 Text("Arcus")
                     .font(.system(size: 30, weight: .heavy, design: .rounded))
