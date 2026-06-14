@@ -131,7 +131,6 @@ final class CameraController: NSObject, ObservableObject {
                 self.session.commitConfiguration()
                 self.publish { $0.position = newPos }
             } else {
-                // 接入失败：退回原朝向，保持可用
                 if let old, self.session.canAddInput(old) { self.session.addInput(old); self.videoInput = old }
                 self.session.commitConfiguration()
             }
@@ -205,36 +204,36 @@ struct CameraPreviewView: UIViewRepresentable {
     }
 }
 
-// MARK: - 相机界面
+// MARK: - 首页内嵌「实时取景」相机卡（camera-first）
 
-/// 自建相机界面：全屏取景 + 快门 / 前后摄切换 / 闪光。拍完直接走 `processData` 进入 3D 处理。
-struct CameraView: View {
+/// 首页顶部的实时相机取景卡：打开 App 即取景，快门直接拍照 → `processData` 进入 3D 处理。
+/// 复用 `CameraController`/`CameraPreviewView`。未授权/无相机时回退到优雅引导（含 Depth-Peel 主视觉），永不空白。
+struct CameraHomeCard: View {
     @ObservedObject var model: AppModel
-    @Environment(\.dismiss) private var dismiss
     @StateObject private var cam = CameraController()
     @State private var shutterFlash = false
-    @State private var autoFired = false   // AUTOCAMERA 冒烟：相机就绪后自动按一次快门
+    @State private var autoFired = false
 
     var body: some View {
         ZStack {
-            Color.black.ignoresSafeArea()
-            if cam.status == .denied {
-                deniedView
-            } else {
-                cameraStage
+            switch cam.status {
+            case .denied: fallback(denied: true)
+            case .failed: fallback(denied: false)
+            default:      liveView
             }
         }
-        .preferredColorScheme(.dark)
+        .aspectRatio(3.0 / 4.0, contentMode: .fit)
+        .frame(maxWidth: .infinity)
+        .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 28, style: .continuous).stroke(Theme.hairline, lineWidth: 1))
+        .shadow(color: .black.opacity(0.28), radius: 22, x: 0, y: 12)
         .onAppear {
-            cam.onCapture = { data in
-                dismiss()
-                model.processData(data)
-            }
+            cam.onCapture = { data in cam.stop(); model.processData(data) }
             cam.start()
         }
         .onDisappear { cam.stop() }
         .onChange(of: cam.status) { _, s in
-            // 冒烟钩子：AUTOCAMERA=1 且相机真正就绪(真机)后，自动按一次快门，端到端验证拍照→深度→3D。
+            // 冒烟钩子：AUTOCAMERA=1 且相机就绪(真机)后自动按一次快门，端到端验证拍照→深度→3D。
             guard s == .ready, !autoFired,
                   ProcessInfo.processInfo.environment["AUTOCAMERA"] == "1" else { return }
             autoFired = true
@@ -242,70 +241,48 @@ struct CameraView: View {
         }
     }
 
-    private var cameraStage: some View {
+    // MARK: 实时取景
+
+    private var liveView: some View {
         ZStack {
+            Color.black
             CameraPreviewView(session: cam.session)
-                .ignoresSafeArea()
                 .opacity(cam.status == .ready ? 1 : 0)
-
-            if cam.status != .ready {
-                ProgressView().controlSize(.large).tint(.white)
-            }
-
-            if shutterFlash { Color.white.ignoresSafeArea() }
+            if cam.status != .ready { ProgressView().controlSize(.large).tint(.white) }
+            if shutterFlash { Color.white }
 
             VStack {
-                topBar
+                HStack {
+                    roundButton(cam.flash.icon) { cam.flash = cam.flash.next }
+                    Spacer()
+                    if cam.depthSupported {
+                        PillLabel(text: String(localized: "Depth On"), icon: "cube.transparent")
+                    }
+                    Spacer()
+                    roundButton("arrow.triangle.2.circlepath.camera.fill") { cam.switchCamera() }
+                }
                 Spacer()
-                bottomBar
+                shutterButton
             }
+            .padding(16)
         }
     }
 
-    private var topBar: some View {
-        HStack {
-            CircleIconButton(system: "xmark") { dismiss() }
-            Spacer()
-            if cam.depthSupported {
-                PillLabel(text: String(localized: "Depth On"), icon: "cube.transparent")
-            }
-            Spacer()
-            Button { cam.flash = cam.flash.next } label: {
-                Image(systemName: cam.flash.icon)
-                    .font(.system(size: 16, weight: .semibold))
-                    .foregroundStyle(.white)
-                    .frame(width: 44, height: 44)
-                    .background(.ultraThinMaterial, in: Circle())
-            }
+    private func roundButton(_ system: String, _ action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Image(systemName: system)
+                .font(.system(size: 15, weight: .semibold))
+                .foregroundStyle(.white)
+                .frame(width: 40, height: 40)
+                .background(.ultraThinMaterial, in: Circle())
         }
-        .padding(.horizontal, 18)
-        .padding(.top, 10)
-    }
-
-    private var bottomBar: some View {
-        HStack {
-            Color.clear.frame(width: 56, height: 56)
-            Spacer()
-            shutterButton
-            Spacer()
-            Button { cam.switchCamera() } label: {
-                Image(systemName: "arrow.triangle.2.circlepath.camera.fill")
-                    .font(.system(size: 20, weight: .semibold))
-                    .foregroundStyle(.white)
-                    .frame(width: 56, height: 56)
-                    .background(.ultraThinMaterial, in: Circle())
-            }
-            .disabled(cam.status != .ready)
-        }
-        .padding(.horizontal, 30)
-        .padding(.bottom, 30)
     }
 
     private var shutterButton: some View {
         Button { capture() } label: {
             ZStack {
-                Circle().stroke(.white, lineWidth: 5).frame(width: 78, height: 78)
-                Circle().fill(.white).frame(width: 64, height: 64)
+                Circle().stroke(.white, lineWidth: 5).frame(width: 72, height: 72)
+                Circle().fill(.white).frame(width: 58, height: 58)
                     .scaleEffect(cam.isCapturing ? 0.84 : 1)
             }
         }
@@ -321,29 +298,31 @@ struct CameraView: View {
         cam.capture()
     }
 
-    private var deniedView: some View {
-        VStack(spacing: 16) {
-            Image(systemName: "camera.fill")
-                .font(.system(size: 46, weight: .light))
-                .foregroundStyle(Theme.accentGradient)
-            Text("Camera Access Needed")
-                .font(.title3.weight(.semibold)).foregroundStyle(.white)
-            Text("Allow camera access in Settings to take a photo and turn it into a 3D scene.")
-                .font(.callout).foregroundStyle(.white.opacity(0.7))
-                .multilineTextAlignment(.center)
-            Button { openSettings() } label: { Text("Open Settings") }
-                .buttonStyle(PrimaryButtonStyle())
-                .padding(.top, 4)
-            Button("Cancel") { dismiss() }
-                .foregroundStyle(.white.opacity(0.6))
+    // MARK: 回退引导（未授权 / 无相机）
+
+    @ViewBuilder private func fallback(denied: Bool) -> some View {
+        ZStack {
+            LinearGradient(colors: [Theme.ink2, Theme.ink, .black], startPoint: .top, endPoint: .bottom)
+            HeroDepthPeel().frame(maxWidth: .infinity).opacity(0.85).allowsHitTesting(false)
+            LinearGradient(colors: [.black.opacity(0.15), .black.opacity(0.55)], startPoint: .top, endPoint: .bottom)
+            VStack(spacing: 10) {
+                Image(systemName: "camera.fill").font(.system(size: 30)).foregroundStyle(.white.opacity(0.92))
+                Text(denied ? "Camera Access Needed" : "Camera Unavailable")
+                    .font(.subheadline.weight(.semibold)).foregroundStyle(.white)
+                if denied {
+                    Button { openSettings() } label: {
+                        Text("Open Settings").font(.caption.weight(.semibold)).foregroundStyle(Theme.accentB)
+                    }
+                } else {
+                    Text("Pick a photo below to create a 3D scene")
+                        .font(.caption).foregroundStyle(.white.opacity(0.75)).multilineTextAlignment(.center)
+                }
+            }
+            .padding(20)
         }
-        .padding(34)
-        .frame(maxWidth: 360)
     }
 
     private func openSettings() {
-        if let url = URL(string: UIApplication.openSettingsURLString) {
-            UIApplication.shared.open(url)
-        }
+        if let url = URL(string: UIApplication.openSettingsURLString) { UIApplication.shared.open(url) }
     }
 }

@@ -1,9 +1,15 @@
 import UIKit
 
-/// 程序化生成的示例图：渐变天空 + 地面 + 一个近景“主体”（球体）。
-/// 用于无相册照片时演示完整管线与渲染（伪深度/阈值分割也能出明显视差）。
+/// 默认示例图：优先用内置的高鲜艳度实拍照（金刚鹦鹉，主体/背景分离明显，最能体现 3D 深度，来源 Unsplash 免费授权）；
+/// 缺失时回退到程序化生成图（渐变天空 + 地面 + 球体），保证永不崩。
 enum SampleImage {
     static func make(width: Int = 900, height: Int = 1200) -> UIImage {
+        if let bundled = UIImage(named: "SampleParrot") { return bundled }
+        return procedural(width: width, height: height)
+    }
+
+    /// 程序化兜底图：渐变天空 + 地面 + 一个近景“主体”（球体）。
+    private static func procedural(width: Int, height: Int) -> UIImage {
         let size = CGSize(width: width, height: height)
         let renderer = UIGraphicsImageRenderer(size: size)
         return renderer.image { rctx in

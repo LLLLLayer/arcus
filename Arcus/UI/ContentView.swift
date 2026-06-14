@@ -75,14 +75,17 @@ private struct IdleView: View {
     @ObservedObject var model: AppModel
     @Binding var pickerItem: PhotosPickerItem?
     @State private var showGallery = false
-    @State private var showCamera = false
 
     var body: some View {
         ScrollView(showsIndicators: false) {
-            VStack(spacing: 26) {
-                hero.padding(.top, 56)
+            VStack(spacing: 18) {
+                // 相机置顶（camera-first）：打开即取景，快门拍照直接进入 3D；下滑才是选照片等。
+                CameraHomeCard(model: model).padding(.top, 6)
+                captionRow
 
                 if !model.galleryItems.isEmpty { recentStrip }
+
+                librarySection
 
                 VStack(alignment: .leading, spacing: 12) {
                     sectionLabel("Rendering Mode", "Choose how to turn your photo into 3D")
@@ -105,26 +108,6 @@ private struct IdleView: View {
                 .padding(14)
                 .glassCard(radius: 18)
 
-                VStack(spacing: 12) {
-                    Button { showCamera = true } label: {
-                        Label("Take Photo", systemImage: "camera.fill")
-                    }
-                    .buttonStyle(RainbowRingButtonStyle())
-
-                    PhotosPicker(selection: $pickerItem, matching: .images, photoLibrary: .shared()) {
-                        Label("Choose Photo", systemImage: "photo.on.rectangle.angled")
-                    }
-                    .buttonStyle(GhostButtonStyle())
-
-                    Button { model.processSample() } label: {
-                        Label("Use Sample Image", systemImage: "wand.and.stars")
-                            .font(.footnote.weight(.medium))
-                            .foregroundStyle(Theme.sub)
-                    }
-                    .buttonStyle(.plain)
-                    .padding(.top, 2)
-                }
-
                 if !model.depthModelAvailable {
                     Label("No Core ML depth model detected; falling back to pseudo-depth. Run scripts/download_models.sh for the best results.",
                           systemImage: "exclamationmark.triangle.fill")
@@ -133,18 +116,13 @@ private struct IdleView: View {
                 }
                 Spacer(minLength: 24)
             }
-            .padding(.horizontal, 22)
+            .padding(.horizontal, 20)
             .frame(maxWidth: 520)
             .frame(maxWidth: .infinity)
         }
         .auroraBackground()
-        .onAppear {
-            model.refreshGallery()
-            // 冒烟钩子：AUTOCAMERA=1 启动即进入拍照界面，便于无 WDA 的端侧验证。
-            if ProcessInfo.processInfo.environment["AUTOCAMERA"] == "1" { showCamera = true }
-        }
+        .onAppear { model.refreshGallery() }
         .sheet(isPresented: $showGallery) { ArcusGalleryView(model: model) }
-        .fullScreenCover(isPresented: $showCamera) { CameraView(model: model) }
     }
 
     private var recentStrip: some View {
@@ -178,17 +156,35 @@ private struct IdleView: View {
         }
     }
 
-    private var hero: some View {
-        VStack(spacing: 18) {
-            HeroDepthPeel().frame(maxWidth: 460)
+    /// 相机下方的品牌小标 + 引导（紧凑，不再是大段「介绍页」式 hero）。
+    private var captionRow: some View {
+        VStack(spacing: 4) {
             Text("Arcus")
-                .font(.system(size: 44, weight: .heavy, design: .rounded))
+                .font(.system(size: 30, weight: .heavy, design: .rounded))
                 .foregroundStyle(LinearGradient(colors: [Theme.title, Theme.accentB],
                                                 startPoint: .top, endPoint: .bottom))
-            Text("Turn a photo into an interactive 3D photo\nOn-device · Offline · Zero-dependency")
-                .multilineTextAlignment(.center)
-                .font(.callout)
-                .foregroundStyle(Theme.sub)
+            Text("Shoot to create an interactive 3D photo")
+                .font(.caption).foregroundStyle(Theme.sub)
+        }
+        .padding(.top, 2)
+    }
+
+    /// 「从相册」：选照片 + 用示例图（相机之外的次要入口，置于下方）。
+    private var librarySection: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            sectionLabel("From Your Library", "Or pick a photo and turn it into 3D")
+            PhotosPicker(selection: $pickerItem, matching: .images, photoLibrary: .shared()) {
+                Label("Choose Photo", systemImage: "photo.on.rectangle.angled")
+            }
+            .buttonStyle(GhostButtonStyle())
+            Button { model.processSample() } label: {
+                Label("Use Sample Image", systemImage: "wand.and.stars")
+                    .font(.footnote.weight(.medium))
+                    .foregroundStyle(Theme.sub)
+                    .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(.plain)
+            .padding(.top, 2)
         }
     }
 

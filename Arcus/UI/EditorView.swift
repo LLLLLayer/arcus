@@ -44,6 +44,7 @@ struct EditorView: View {
             // 用 scaledToFit 与渲染器的 fit 取景对齐（按原比例、居中、留白露背景），过场不跳变。
             if isGaussian, coverFade > 0.01, let img = model.sourceImage {
                 Image(uiImage: img).resizable().scaledToFit()
+                    .blur(radius: CGFloat(1 - coverFade) * 18)   // 淡出同时逐渐雾化，柔和溶解进 3D，露出的遮挡区不生硬
                     .opacity(coverFade).allowsHitTesting(false).ignoresSafeArea()
             }
 
@@ -127,19 +128,28 @@ struct EditorView: View {
             ZStack {
                 LinearGradient(colors: [Theme.ink2, Theme.ink, .black], startPoint: .top, endPoint: .bottom)
                 if let img = model.sourceImage {
+                    // 柔雾背景：重高斯模糊 + 适度饱和（不过曝、不生硬），露出的遮挡区域呈梦幻雾状（对标 Reshot）。
                     Image(uiImage: img).resizable().scaledToFill()
                         .frame(width: w, height: h).clipped()
-                        .blur(radius: 48).saturation(2.4).brightness(0.04).opacity(0.92)
+                        .blur(radius: 70).saturation(1.3).brightness(0.02).opacity(0.95)
+                    // 柔白雾纱（softLight）：增加雾感、柔化边界，不抢主体。
+                    LinearGradient(colors: [.white.opacity(0.10), .clear, .white.opacity(0.05)],
+                                   startPoint: .top, endPoint: .bottom)
+                        .blendMode(.softLight)
+                    // 极淡虹彩流动（spatial 质感，克制，不再喧宾夺主）。
                     TimelineView(.animation) { timeline in
                         let t = timeline.date.timeIntervalSinceReferenceDate
-                        let rot = (t.truncatingRemainder(dividingBy: 18) / 18) * 360
+                        let rot = (t.truncatingRemainder(dividingBy: 24) / 24) * 360
                         AngularGradient(colors: Theme.rainbowColors, center: .center)
                             .rotationEffect(.degrees(rot))
                             .frame(width: w, height: h)
-                            .blur(radius: 64).opacity(0.32).blendMode(.overlay)
+                            .blur(radius: 96).opacity(0.12).blendMode(.overlay)
                     }
+                    // 柔和暗角，把视线收向中央主体。
+                    RadialGradient(colors: [.clear, .black.opacity(0.34)],
+                                   center: .center, startRadius: w * 0.32, endRadius: w * 0.92)
                 }
-                Color.black.opacity(0.14)
+                Color.black.opacity(0.12)
             }
             .frame(width: w, height: h)
             .clipped()

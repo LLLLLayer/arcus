@@ -10,25 +10,34 @@ struct ProcessingView: View {
             Theme.ink.ignoresSafeArea()
 
             if let img = model.sourceImage {
+                // 背景：同图模糊铺满 + 压暗，填满屏幕避免黑边；FillImage(精确 frame+clipped)不会撑大坐标系，底部进度坞稳。
+                FillImage(image: img)
+                    .blur(radius: 48).opacity(0.5).saturation(1.2)
+                    .ignoresSafeArea()
+                LinearGradient(colors: [.black.opacity(0.5), .black.opacity(0.32), .black.opacity(0.62)],
+                               startPoint: .top, endPoint: .bottom)
+                    .ignoresSafeArea()
+
+                // 前景：原图**按原始比例**展示（scaledToFit，绝不裁切/拉伸）+ 炫彩（色相循环 + 反向旋转彩虹 screen）。
                 TimelineView(.animation) { timeline in
                     let t = timeline.date.timeIntervalSinceReferenceDate
                     let rot = (t.truncatingRemainder(dividingBy: 6) / 6) * 360
-                    ZStack {
-                        // 必须用 FillImage(GeometryReader+精确 frame+clipped)，不能裸用 scaledToFill：
-                        // 竖图 scaledToFill 的理想宽超出屏宽 ⇒ 撑大 ZStack 坐标系 ⇒ 底部进度坞被挤出屏外/裁切。
-                        FillImage(image: img)
-                            .saturation(1.7).brightness(0.04).contrast(1.04)
-                            .hueRotation(.degrees(rot))               // 色相循环 ⇒ 炫彩流动
-                            .ignoresSafeArea()
-                        AngularGradient(colors: Theme.rainbowColors, center: .center)
-                            .rotationEffect(.degrees(-rot))           // 反向旋转的彩虹
-                            .scaleEffect(1.4).blur(radius: 44)
-                            .opacity(0.5).blendMode(.screen)
-                            .ignoresSafeArea()
-                        LinearGradient(colors: [.black.opacity(0.15), .clear, .black.opacity(0.55)],
-                                       startPoint: .top, endPoint: .bottom)
-                            .ignoresSafeArea()
-                    }
+                    Image(uiImage: img).resizable().scaledToFit()
+                        .saturation(1.6).brightness(0.03).contrast(1.03)
+                        .hueRotation(.degrees(rot))               // 色相循环 ⇒ 炫彩流动
+                        .overlay(
+                            AngularGradient(colors: Theme.rainbowColors, center: .center)
+                                .rotationEffect(.degrees(-rot))   // 反向旋转的彩虹
+                                .scaleEffect(1.4).blur(radius: 32)
+                                .opacity(0.4).blendMode(.screen)
+                        )
+                        .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
+                        .overlay(RoundedRectangle(cornerRadius: 22, style: .continuous)
+                            .stroke(.white.opacity(0.12), lineWidth: 1))
+                        .shadow(color: .black.opacity(0.5), radius: 28, x: 0, y: 16)
+                        .padding(.horizontal, 26)
+                        .padding(.top, 64)
+                        .padding(.bottom, 132)   // 给底部进度坞留空间
                 }
             } else {
                 Color.clear.auroraBackground()
