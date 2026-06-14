@@ -212,23 +212,20 @@ struct CameraPreviewView: UIViewRepresentable {
 struct CameraHomeCard: View {
     @ObservedObject var model: AppModel
     @StateObject private var cam = CameraController()
-    @State private var started = false          // 用户是否已点「打开相机」
-    @State private var openProgress: Double = 0  // 0=闭合(光圈按钮) → 1=全开(取景)，驱动「转开」动画
+    @State private var started = false           // 用户是否已点「打开相机」
+    @State private var openProgress: Double = 0  // 0=闭合 → 1=花瓣全开（几何）
+    @State private var revealed = false           // 绽放完成后：花淡出、取景淡入
     @State private var shutterFlash = false
     @State private var autoFired = false
 
     var body: some View {
         ZStack {
-            // 背景 / 取景：转开过程中随 openProgress 淡入
-            Group {
-                if started { liveOrFallback } else { idleBackdrop }
-            }
-            .opacity(started ? openProgress : 1)
+            // 背景：闭合/绽放时暗底；绽放完成后交叉淡入实时取景
+            idleBackdrop.opacity(revealed ? 0 : 1)
+            if started { liveOrFallback.opacity(revealed ? 1 : 0) }
 
-            // 七彩光圈：闭合是「打开相机」按钮；点开后旋转放大并淡出（像图标转开）
-            if openProgress < 1 {
-                apertureButton
-            }
+            // 七彩花瓣光圈：闭合=「打开相机」按钮；点按后旋转绽放，随后淡出
+            flowerButton
 
             // 闭合态文案
             if !started {
@@ -241,8 +238,8 @@ struct CameraHomeCard: View {
                 .opacity(1 - openProgress)
             }
 
-            // 取景控件（全开 + 就绪后才出现）
-            if started, openProgress > 0.98, cam.status == .ready {
+            // 取景控件（绽放完成 + 就绪后才出现）
+            if revealed, cam.status == .ready {
                 liveControls.transition(.opacity)
             }
 
@@ -273,26 +270,30 @@ struct CameraHomeCard: View {
         started = true
         cam.onCapture = { data in cam.stop(); model.processData(data) }
         cam.start()
-        withAnimation(.spring(response: 0.75, dampingFraction: 0.8)) { openProgress = 1 }
+        withAnimation(.spring(response: 0.85, dampingFraction: 0.56)) { openProgress = 1 }   // 旋转绽放（带回弹，足够动感）
+        withAnimation(.easeInOut(duration: 0.45).delay(0.55)) { revealed = true }              // 绽放后交叉淡入取景
     }
 
     private func resetClosed() {
-        started = false; openProgress = 0; autoFired = false
+        started = false; openProgress = 0; revealed = false; autoFired = false
     }
 
-    // MARK: 光圈按钮 +「转开」动画
+    // MARK: 花瓣光圈按钮 +「旋转绽放」动画
 
-    private var apertureButton: some View {
-        Button(action: openCamera) {
-            ApertureMark(swirl: 16, holeScale: 0.5, centerGlass: !started)
-                .frame(width: 132, height: 132)
-                .rotationEffect(.degrees(openProgress * 90))      // 旋转转开
-                .scaleEffect(1 + openProgress * 4.2)              // 放大冲出卡片，像图标展开
-                .opacity(openProgress < 0.55 ? 1 : max(0, 1 - (openProgress - 0.55) / 0.45))
-                .shadow(color: Theme.accentA.opacity(0.5), radius: 20)
+    private var flowerButton: some View {
+        TimelineView(.animation(paused: started)) { tl in
+            let t = tl.date.timeIntervalSinceReferenceDate
+            let idleSpin = (t.truncatingRemainder(dividingBy: 30) / 30) * 360   // 闭合态极慢自转；paused 时冻结，不跳变
+            Button(action: openCamera) {
+                BloomingAperture(progress: openProgress)
+                    .frame(width: 156, height: 156)
+                    .rotationEffect(.degrees(idleSpin))
+                    .shadow(color: Theme.accentA.opacity(0.5), radius: 22)
+            }
+            .buttonStyle(.plain)
+            .allowsHitTesting(!started)
+            .opacity(revealed ? 0 : 1)
         }
-        .buttonStyle(.plain)
-        .allowsHitTesting(!started)
     }
 
     private var idleBackdrop: some View {

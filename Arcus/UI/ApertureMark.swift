@@ -81,3 +81,61 @@ struct ApertureMark: View {
         }
     }
 }
+
+/// 单片花瓣 / 光圈叶片（底部为尖端朝中心，顶部圆润）。
+struct PetalShape: Shape {
+    func path(in rect: CGRect) -> Path {
+        let w = rect.width, h = rect.height
+        var p = Path()
+        p.move(to: CGPoint(x: w / 2, y: h))                               // 底部尖端（朝中心）
+        p.addCurve(to: CGPoint(x: w / 2, y: 0),                           // 顶部
+                   control1: CGPoint(x: -w * 0.10, y: h * 0.58),
+                   control2: CGPoint(x: w * 0.30, y: h * 0.06))
+        p.addCurve(to: CGPoint(x: w / 2, y: h),                           // 回到底部尖端
+                   control1: CGPoint(x: w * 0.70, y: h * 0.06),
+                   control2: CGPoint(x: w * 1.10, y: h * 0.58))
+        p.closeSubpath()
+        return p
+    }
+}
+
+/// 会「绽放」的七彩花瓣光圈：`progress` 0→1 时，花瓣一边旋转一边向外展开、露出中心——
+/// 用作「打开相机」的转场（像一朵花旋转转开）。几何全部由 progress 推导，配 spring 即有回弹动感。
+struct BloomingAperture: View {
+    var progress: Double
+    var bladeCount: Int = 6
+
+    var body: some View {
+        GeometryReader { geo in
+            let s = min(geo.size.width, geo.size.height)
+            let petalH = s * 0.42
+            let petalW = s * 0.36
+            let r = s * 0.02 + s * 0.30 * CGFloat(progress)     // 中心半径：闭合→展开
+            let spin = progress * 178.0                          // 整体旋转转开
+            let unfurl = progress * 26.0                         // 花瓣外翻
+            let n = max(3, bladeCount)
+            ZStack {
+                ForEach(0..<n, id: \.self) { i in
+                    let col = Theme.rainbowColors[i % (Theme.rainbowColors.count - 1)]
+                    PetalShape()
+                        .fill(LinearGradient(colors: [col.opacity(0.96), col, col.opacity(0.78)],
+                                             startPoint: .top, endPoint: .bottom))
+                        .overlay(PetalShape().stroke(.white.opacity(0.30), lineWidth: max(1, s * 0.006)))
+                        .frame(width: petalW, height: petalH)
+                        .rotationEffect(.degrees(unfurl), anchor: .bottom)
+                        .offset(y: -(r + petalH / 2))
+                        .rotationEffect(.degrees(Double(i) * 360.0 / Double(n) + spin))
+                        .shadow(color: col.opacity(0.5), radius: s * 0.03)
+                }
+                // 中心玻璃眼：闭合时明显，绽放时缩小让出中心
+                Circle()
+                    .fill(RadialGradient(colors: [.white, .white.opacity(0)], center: .center,
+                                         startRadius: 0, endRadius: s * 0.12))
+                    .frame(width: s * 0.18 * (1 - CGFloat(progress) * 0.85),
+                           height: s * 0.18 * (1 - CGFloat(progress) * 0.85))
+            }
+            .frame(width: s, height: s)
+            .position(x: geo.size.width / 2, y: geo.size.height / 2)
+        }
+    }
+}
