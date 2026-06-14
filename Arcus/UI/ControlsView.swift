@@ -6,7 +6,7 @@ struct ControlsView: View {
     @Binding var pickerItem: PhotosPickerItem?
     var onOpenGeminiSettings: (() -> Void)? = nil
     var onRepair: (() -> Void)? = nil
-    @State private var expanded = true
+    @State private var expanded = false   // 默认收起，沉浸看 3D；点 chevron 展开参数/导出
 
     private var isGaussian: Bool {
         model.sceneMode == .gaussianSplat && model.scene?.gaussianScene != nil
