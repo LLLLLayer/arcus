@@ -14,16 +14,16 @@ final class MetalContext {
 
     private init() {
         guard let device = MTLCreateSystemDefaultDevice() else {
-            fatalError("Metal 不可用：本设备/模拟器不支持 Metal。")
+            fatalError("Metal unavailable: this device/simulator does not support Metal.")
         }
         self.device = device
         guard let queue = device.makeCommandQueue() else {
-            fatalError("无法创建 Metal command queue。")
+            fatalError("Failed to create Metal command queue.")
         }
         self.queue = queue
         // 工程内的 .metal 文件会被编进 default.metallib。
         guard let library = device.makeDefaultLibrary() else {
-            fatalError("找不到 default.metallib（Shaders.metal 未编译进 target？）。")
+            fatalError("default.metallib not found (is Shaders.metal compiled into the target?).")
         }
         self.library = library
         self.ciContext = CIContext(mtlDevice: device, options: [

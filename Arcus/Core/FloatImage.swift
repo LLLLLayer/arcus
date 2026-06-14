@@ -18,7 +18,7 @@ struct FloatImage {
     }
 
     init(width: Int, height: Int, channels: Int, pixels: [Float]) {
-        precondition(pixels.count == width * height * channels, "FloatImage 尺寸与数据不符")
+        precondition(pixels.count == width * height * channels, "FloatImage size does not match data")
         self.width = width
         self.height = height
         self.channels = channels
@@ -400,7 +400,7 @@ struct FloatImage {
     // MARK: - 上传到 Metal 纹理
     /// RGBA 颜色 → rgba8Unorm。channels 须为 3 或 4。分配失败返回 nil。
     func uploadColorTexture(_ ctx: MetalContext = .shared) -> MTLTexture? {
-        precondition(channels >= 3, "uploadColorTexture 需要 3 或 4 通道")
+        precondition(channels >= 3, "uploadColorTexture requires 3 or 4 channels")
         guard width > 0, height > 0, let tex = ctx.makeColorTexture(width: width, height: height) else { return nil }
         var bytes = [UInt8](repeating: 0, count: width * height * 4)
         for p in 0..<(width * height) {

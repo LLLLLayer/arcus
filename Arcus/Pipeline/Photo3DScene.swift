@@ -22,6 +22,10 @@ final class Photo3DScene: @unchecked Sendable {
     }
     let multiLayer: MultiLayer?
 
+    /// 高斯泼溅产物（仅当首页选择「高斯泼溅」时由管线一并构建；LDI 路径恒为 nil）。
+    /// 与 LDI 烘焙并存：同一张照片既有分层网格，也有 3D 高斯，渲染器按 SceneMode 二选一。
+    let gaussianScene: GaussianScene?
+
     let width: Int
     let height: Int
     var aspect: Float { Float(width) / Float(height) }
@@ -64,8 +68,10 @@ final class Photo3DScene: @unchecked Sendable {
          depthSource: String, segmentSource: String, inpaintSource: String,
          fgCenter: SIMD2<Float> = SIMD2<Float>(0.5, 0.5),
          depthPivot: Float = 0.5,
-         multiLayer: MultiLayer? = nil) {
+         multiLayer: MultiLayer? = nil,
+         gaussianScene: GaussianScene? = nil) {
         self.multiLayer = multiLayer
+        self.gaussianScene = gaussianScene
         self.fgCenter = fgCenter
         self.depthPivot = depthPivot
         self.width = width

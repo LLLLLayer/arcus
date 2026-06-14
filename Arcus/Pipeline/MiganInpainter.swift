@@ -19,16 +19,16 @@ final class MiganInpainter {
         guard !triedLoad else { return }
         triedLoad = true
         guard let url = Self.findModelURL() else {
-            NSLog("[MiGAN] 未找到补全模型，回退 PatchMatch。运行 scripts/download_models.sh / convert_migan.py 获取。")
+            NSLog("[MiGAN] No inpainting model found, falling back to PatchMatch. Run scripts/download_models.sh / convert_migan.py.")
             return
         }
         do {
             let cfg = MLModelConfiguration()
             cfg.computeUnits = .all   // 纯卷积，ANE/GPU 友好
             model = try MLModel(contentsOf: url, configuration: cfg)
-            NSLog("[MiGAN] 已加载补全模型：\(url.lastPathComponent)")
+            NSLog("[MiGAN] Loaded inpainting model: \(url.lastPathComponent)")
         } catch {
-            NSLog("[MiGAN] 加载失败：\(error.localizedDescription)")
+            NSLog("[MiGAN] Load failed: \(error.localizedDescription)")
         }
     }
 
@@ -107,7 +107,7 @@ final class MiganInpainter {
         guard let prov = try? MLDictionaryFeatureProvider(dictionary: ["image": imgArr, "mask": mskArr]),
               let out = try? model.prediction(from: prov),
               let arr = out.featureValue(for: "result")?.multiArrayValue else {
-            NSLog("[MiGAN] 推理失败，回退 PatchMatch")
+            NSLog("[MiGAN] Inference failed, falling back to PatchMatch")
             return nil
         }
         let op = arr.dataPointer.assumingMemoryBound(to: Float32.self)

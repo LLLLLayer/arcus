@@ -19,7 +19,7 @@ final class LamaInpainter {
         guard !triedLoad else { return }
         triedLoad = true
         guard let url = Self.findModelURL() else {
-            NSLog("[LaMa] 未找到补全模型，回退 push-pull。运行 scripts/download_models.sh 获取。")
+            NSLog("[LaMa] No inpainting model found, falling back to push-pull. Run scripts/download_models.sh.")
             return
         }
         do {
@@ -27,9 +27,9 @@ final class LamaInpainter {
             // FFC 的 irfft 等算子在 ANE 上不稳，pin 到 GPU+CPU 更可靠。
             cfg.computeUnits = .cpuAndGPU
             model = try MLModel(contentsOf: url, configuration: cfg)
-            NSLog("[LaMa] 已加载补全模型：\(url.lastPathComponent)")
+            NSLog("[LaMa] Loaded inpainting model: \(url.lastPathComponent)")
         } catch {
-            NSLog("[LaMa] 加载失败：\(error.localizedDescription)")
+            NSLog("[LaMa] Load failed: \(error.localizedDescription)")
         }
     }
 
@@ -162,7 +162,7 @@ final class LamaInpainter {
         guard let prov = try? MLDictionaryFeatureProvider(dictionary: ["image": img, "mask": msk]),
               let out = try? model.prediction(from: prov),
               let arr = out.featureValue(for: "inpainted_image")?.multiArrayValue else {
-            NSLog("[LaMa] 推理失败，回退 push-pull")
+            NSLog("[LaMa] Inference failed, falling back to push-pull")
             return nil
         }
         let op = arr.dataPointer.assumingMemoryBound(to: Float32.self)
