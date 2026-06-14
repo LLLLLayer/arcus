@@ -75,6 +75,7 @@ private struct IdleView: View {
     @ObservedObject var model: AppModel
     @Binding var pickerItem: PhotosPickerItem?
     @State private var showGallery = false
+    @State private var showCamera = false
 
     var body: some View {
         ScrollView(showsIndicators: false) {
@@ -105,15 +106,23 @@ private struct IdleView: View {
                 .glassCard(radius: 18)
 
                 VStack(spacing: 12) {
-                    PhotosPicker(selection: $pickerItem, matching: .images, photoLibrary: .shared()) {
-                        Label("Choose Photo", systemImage: "photo.on.rectangle.angled")
+                    Button { showCamera = true } label: {
+                        Label("Take Photo", systemImage: "camera.fill")
                     }
                     .buttonStyle(RainbowRingButtonStyle())
 
-                    Button { model.processSample() } label: {
-                        Label("Use Sample Image", systemImage: "wand.and.stars")
+                    PhotosPicker(selection: $pickerItem, matching: .images, photoLibrary: .shared()) {
+                        Label("Choose Photo", systemImage: "photo.on.rectangle.angled")
                     }
                     .buttonStyle(GhostButtonStyle())
+
+                    Button { model.processSample() } label: {
+                        Label("Use Sample Image", systemImage: "wand.and.stars")
+                            .font(.footnote.weight(.medium))
+                            .foregroundStyle(Theme.sub)
+                    }
+                    .buttonStyle(.plain)
+                    .padding(.top, 2)
                 }
 
                 if !model.depthModelAvailable {
@@ -129,8 +138,13 @@ private struct IdleView: View {
             .frame(maxWidth: .infinity)
         }
         .auroraBackground()
-        .onAppear { model.refreshGallery() }
+        .onAppear {
+            model.refreshGallery()
+            // 冒烟钩子：AUTOCAMERA=1 启动即进入拍照界面，便于无 WDA 的端侧验证。
+            if ProcessInfo.processInfo.environment["AUTOCAMERA"] == "1" { showCamera = true }
+        }
         .sheet(isPresented: $showGallery) { ArcusGalleryView(model: model) }
+        .fullScreenCover(isPresented: $showCamera) { CameraView(model: model) }
     }
 
     private var recentStrip: some View {
@@ -166,7 +180,7 @@ private struct IdleView: View {
 
     private var hero: some View {
         VStack(spacing: 18) {
-            heroCard.frame(height: 168)
+            HeroDepthPeel().frame(maxWidth: 460)
             Text("Arcus")
                 .font(.system(size: 44, weight: .heavy, design: .rounded))
                 .foregroundStyle(LinearGradient(colors: [Theme.title, Theme.accentB],
@@ -175,38 +189,6 @@ private struct IdleView: View {
                 .multilineTextAlignment(.center)
                 .font(.callout)
                 .foregroundStyle(Theme.sub)
-        }
-    }
-
-    /// 立体「照片长出深度」主视觉：错位的极光卡片 + 柔光 + 彩虹弧（Arcus=彩虹），呼应空间照片质感。
-    private var heroCard: some View {
-        ZStack {
-            Circle().fill(Theme.accentGradient).frame(width: 150, height: 150)
-                .blur(radius: 46).opacity(0.40)
-            // 后层卡片：景深/视差提示
-            RoundedRectangle(cornerRadius: 22, style: .continuous)
-                .fill(LinearGradient(colors: [Theme.accentB.opacity(0.55), Theme.accentA.opacity(0.55)],
-                                     startPoint: .top, endPoint: .bottom))
-                .frame(width: 96, height: 128)
-                .rotation3DEffect(.degrees(22), axis: (x: 0, y: 1, z: 0))
-                .offset(x: 30, y: -4).opacity(0.5).blur(radius: 0.5)
-            // 前层卡片：极光主体 + 彩虹弧
-            RoundedRectangle(cornerRadius: 22, style: .continuous)
-                .fill(LinearGradient(colors: [Theme.accentC, Theme.accentA, Theme.accentB],
-                                     startPoint: .topLeading, endPoint: .bottomTrailing))
-                .frame(width: 102, height: 134)
-                .overlay(
-                    Circle()
-                        .trim(from: 0.05, to: 0.45)
-                        .stroke(.white.opacity(0.85), style: StrokeStyle(lineWidth: 5, lineCap: .round))
-                        .frame(width: 150, height: 150)
-                        .blur(radius: 0.4)
-                        .rotationEffect(.degrees(-20))
-                        .offset(y: 8)
-                )
-                .overlay(RoundedRectangle(cornerRadius: 22, style: .continuous).stroke(.white.opacity(0.25), lineWidth: 1))
-                .rotation3DEffect(.degrees(-16), axis: (x: 0, y: 1, z: 0))
-                .shadow(color: .black.opacity(0.45), radius: 18, x: 0, y: 14)
         }
     }
 

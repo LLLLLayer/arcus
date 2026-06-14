@@ -1,0 +1,70 @@
+{
+  "sourceLanguage": "en",
+  "strings": {
+    "NSCameraUsageDescription": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Arcus uses the camera to take a photo and turn it into an interactive 3D photo."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "用于拍照并生成可交互的 3D 照片。"
+          }
+        }
+      }
+    },
+    "NSMotionUsageDescription": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Arcus uses device motion to drive the 3D photo's motion parallax."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "用陀螺仪姿态驱动 3D 照片的运动视差。"
+          }
+        }
+      }
+    },
+    "NSPhotoLibraryAddUsageDescription": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Arcus saves your 3D videos and spatial photos to your photo library."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "把生成的 3D 视频与空间照片保存到相册。"
+          }
+        }
+      }
+    },
+    "NSPhotoLibraryUsageDescription": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Arcus needs access to your photos to turn one into a 3D photo."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "选择一张照片来生成 3D 照片。"
+          }
+        }
+      }
+    }
+  },
+  "version": "1.0"
+}
