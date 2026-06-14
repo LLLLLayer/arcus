@@ -231,8 +231,8 @@ struct CameraHomeCard: View {
             if !started {
                 VStack {
                     Spacer()
-                    Text("Open Camera").font(.subheadline.weight(.semibold)).foregroundStyle(.white)
-                    Text("Tap to shoot a 3D photo").font(.caption2).foregroundStyle(.white.opacity(0.7))
+                    Text("Open Camera").font(.subheadline.weight(.semibold)).foregroundStyle(Theme.title)
+                    Text("Tap to shoot a 3D photo").font(.caption2).foregroundStyle(Theme.sub)
                 }
                 .padding(.bottom, 24)
                 .opacity(1 - openProgress)
@@ -293,7 +293,7 @@ struct CameraHomeCard: View {
 
     private var idleBackdrop: some View {
         ZStack {
-            LinearGradient(colors: [Color(red: 0.07, green: 0.08, blue: 0.13), Color(red: 0.03, green: 0.035, blue: 0.06), .black], startPoint: .top, endPoint: .bottom)
+            LinearGradient(colors: [Theme.ink2, Theme.ink], startPoint: .top, endPoint: .bottom)
             Circle().fill(Theme.accentA.opacity(0.22)).frame(width: 220, height: 220).blur(radius: 70).offset(x: -60, y: -80)
             Circle().fill(Theme.accentB.opacity(0.18)).frame(width: 200, height: 200).blur(radius: 70).offset(x: 70, y: 90)
         }
@@ -311,9 +311,9 @@ struct CameraHomeCard: View {
 
     private var livePreview: some View {
         ZStack {
-            Color.black
+            Theme.ink   // 取景就绪前的底色（自适应深浅）；就绪后被相机画面覆盖
             CameraPreviewView(session: cam.session).opacity(cam.status == .ready ? 1 : 0)
-            if cam.status != .ready { ProgressView().controlSize(.large).tint(.white) }
+            if cam.status != .ready { ProgressView().controlSize(.large).tint(Theme.body) }
         }
     }
 
@@ -370,22 +370,23 @@ struct CameraHomeCard: View {
 
     @ViewBuilder private func fallback(denied: Bool) -> some View {
         ZStack {
-            LinearGradient(colors: [Color(red: 0.07, green: 0.08, blue: 0.13), Color(red: 0.03, green: 0.035, blue: 0.06), .black], startPoint: .top, endPoint: .bottom)
-            HeroDepthPeel().frame(maxWidth: .infinity).opacity(0.85).allowsHitTesting(false)
-            LinearGradient(colors: [.black.opacity(0.15), .black.opacity(0.55)], startPoint: .top, endPoint: .bottom)
+            LinearGradient(colors: [Theme.ink2, Theme.ink], startPoint: .top, endPoint: .bottom)
+            HeroDepthPeel().frame(maxWidth: .infinity).opacity(0.8).allowsHitTesting(false)
             VStack(spacing: 10) {
-                Image(systemName: "camera.fill").font(.system(size: 30)).foregroundStyle(.white.opacity(0.92))
+                Image(systemName: "camera.fill").font(.system(size: 30)).foregroundStyle(Theme.body)
                 Text(denied ? "Camera Access Needed" : "Camera Unavailable")
-                    .font(.subheadline.weight(.semibold)).foregroundStyle(.white)
+                    .font(.subheadline.weight(.semibold)).foregroundStyle(Theme.title)
                 if denied {
                     Button { openSettings() } label: {
                         Text("Open Settings").font(.caption.weight(.semibold)).foregroundStyle(Theme.accentB)
                     }
                 } else {
                     Text("Pick a photo below to create a 3D scene")
-                        .font(.caption).foregroundStyle(.white.opacity(0.75)).multilineTextAlignment(.center)
+                        .font(.caption).foregroundStyle(Theme.sub).multilineTextAlignment(.center)
                 }
             }
+            .padding(18)
+            .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
             .padding(20)
         }
     }
