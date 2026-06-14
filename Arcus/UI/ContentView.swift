@@ -156,13 +156,18 @@ private struct IdleView: View {
         }
     }
 
-    /// 相机下方的品牌小标 + 引导（紧凑，不再是大段「介绍页」式 hero）。
+    /// 相机下方的品牌小标 + 引导：七彩光圈 logo + 彩虹字标，呼应 App 图标。
     private var captionRow: some View {
-        VStack(spacing: 4) {
-            Text("Arcus")
-                .font(.system(size: 30, weight: .heavy, design: .rounded))
-                .foregroundStyle(LinearGradient(colors: [Theme.title, Theme.accentB],
-                                                startPoint: .top, endPoint: .bottom))
+        VStack(spacing: 6) {
+            HStack(spacing: 9) {
+                ApertureMark(swirl: 16, holeScale: 0.46)
+                    .frame(width: 30, height: 30)
+                Text("Arcus")
+                    .font(.system(size: 30, weight: .heavy, design: .rounded))
+                    .foregroundStyle(LinearGradient(colors: Theme.rainbowColors,
+                                                    startPoint: .leading, endPoint: .trailing))
+                    .shadow(color: .black.opacity(0.18), radius: 1, y: 1)
+            }
             Text("Shoot to create an interactive 3D photo")
                 .font(.caption).foregroundStyle(Theme.sub)
         }

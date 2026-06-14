@@ -204,23 +204,49 @@ struct CameraPreviewView: UIViewRepresentable {
     }
 }
 
-// MARK: - 首页内嵌「实时取景」相机卡（camera-first）
+// MARK: - 首页内嵌「实时取景」相机卡（camera-first，点按光圈「转开」）
 
-/// 首页顶部的实时相机取景卡：打开 App 即取景，快门直接拍照 → `processData` 进入 3D 处理。
-/// 复用 `CameraController`/`CameraPreviewView`。未授权/无相机时回退到优雅引导（含 Depth-Peel 主视觉），永不空白。
+/// 首页顶部的相机卡。**不自动开相机**（不在启动/解锁时弹权限）：默认是一颗七彩光圈「打开相机」按钮，
+/// 点按后光圈像桌面图标一样旋转放大「转开」，再淡入实时取景；快门拍照 → `processData` 进入 3D。
+/// 复用 `CameraController`/`CameraPreviewView`。未授权/无相机时回退到优雅引导，永不空白。
 struct CameraHomeCard: View {
     @ObservedObject var model: AppModel
     @StateObject private var cam = CameraController()
+    @State private var started = false          // 用户是否已点「打开相机」
+    @State private var openProgress: Double = 0  // 0=闭合(光圈按钮) → 1=全开(取景)，驱动「转开」动画
     @State private var shutterFlash = false
     @State private var autoFired = false
 
     var body: some View {
         ZStack {
-            switch cam.status {
-            case .denied: fallback(denied: true)
-            case .failed: fallback(denied: false)
-            default:      liveView
+            // 背景 / 取景：转开过程中随 openProgress 淡入
+            Group {
+                if started { liveOrFallback } else { idleBackdrop }
             }
+            .opacity(started ? openProgress : 1)
+
+            // 七彩光圈：闭合是「打开相机」按钮；点开后旋转放大并淡出（像图标转开）
+            if openProgress < 1 {
+                apertureButton
+            }
+
+            // 闭合态文案
+            if !started {
+                VStack {
+                    Spacer()
+                    Text("Open Camera").font(.subheadline.weight(.semibold)).foregroundStyle(.white)
+                    Text("Tap to shoot a 3D photo").font(.caption2).foregroundStyle(.white.opacity(0.7))
+                }
+                .padding(.bottom, 24)
+                .opacity(1 - openProgress)
+            }
+
+            // 取景控件（全开 + 就绪后才出现）
+            if started, openProgress > 0.98, cam.status == .ready {
+                liveControls.transition(.opacity)
+            }
+
+            if shutterFlash { Color.white }
         }
         .aspectRatio(3.0 / 4.0, contentMode: .fit)
         .frame(maxWidth: .infinity)
@@ -228,12 +254,11 @@ struct CameraHomeCard: View {
         .overlay(RoundedRectangle(cornerRadius: 28, style: .continuous).stroke(Theme.hairline, lineWidth: 1))
         .shadow(color: .black.opacity(0.28), radius: 22, x: 0, y: 12)
         .onAppear {
-            cam.onCapture = { data in cam.stop(); model.processData(data) }
-            cam.start()
+            // 冒烟钩子：AUTOCAMERA=1 启动即自动「转开」相机。
+            if ProcessInfo.processInfo.environment["AUTOCAMERA"] == "1" { openCamera() }
         }
-        .onDisappear { cam.stop() }
+        .onDisappear { cam.stop(); resetClosed() }
         .onChange(of: cam.status) { _, s in
-            // 冒烟钩子：AUTOCAMERA=1 且相机就绪(真机)后自动按一次快门，端到端验证拍照→深度→3D。
             guard s == .ready, !autoFired,
                   ProcessInfo.processInfo.environment["AUTOCAMERA"] == "1" else { return }
             autoFired = true
@@ -241,31 +266,76 @@ struct CameraHomeCard: View {
         }
     }
 
-    // MARK: 实时取景
+    // MARK: 打开 / 复位
 
-    private var liveView: some View {
+    private func openCamera() {
+        guard !started else { return }
+        started = true
+        cam.onCapture = { data in cam.stop(); model.processData(data) }
+        cam.start()
+        withAnimation(.spring(response: 0.75, dampingFraction: 0.8)) { openProgress = 1 }
+    }
+
+    private func resetClosed() {
+        started = false; openProgress = 0; autoFired = false
+    }
+
+    // MARK: 光圈按钮 +「转开」动画
+
+    private var apertureButton: some View {
+        Button(action: openCamera) {
+            ApertureMark(swirl: 16, holeScale: 0.5, centerGlass: !started)
+                .frame(width: 132, height: 132)
+                .rotationEffect(.degrees(openProgress * 90))      // 旋转转开
+                .scaleEffect(1 + openProgress * 4.2)              // 放大冲出卡片，像图标展开
+                .opacity(openProgress < 0.55 ? 1 : max(0, 1 - (openProgress - 0.55) / 0.45))
+                .shadow(color: Theme.accentA.opacity(0.5), radius: 20)
+        }
+        .buttonStyle(.plain)
+        .allowsHitTesting(!started)
+    }
+
+    private var idleBackdrop: some View {
+        ZStack {
+            LinearGradient(colors: [Color(red: 0.07, green: 0.08, blue: 0.13), Color(red: 0.03, green: 0.035, blue: 0.06), .black], startPoint: .top, endPoint: .bottom)
+            Circle().fill(Theme.accentA.opacity(0.22)).frame(width: 220, height: 220).blur(radius: 70).offset(x: -60, y: -80)
+            Circle().fill(Theme.accentB.opacity(0.18)).frame(width: 200, height: 200).blur(radius: 70).offset(x: 70, y: 90)
+        }
+    }
+
+    // MARK: 实时取景 + 控件
+
+    @ViewBuilder private var liveOrFallback: some View {
+        switch cam.status {
+        case .denied: fallback(denied: true)
+        case .failed: fallback(denied: false)
+        default:      livePreview
+        }
+    }
+
+    private var livePreview: some View {
         ZStack {
             Color.black
-            CameraPreviewView(session: cam.session)
-                .opacity(cam.status == .ready ? 1 : 0)
+            CameraPreviewView(session: cam.session).opacity(cam.status == .ready ? 1 : 0)
             if cam.status != .ready { ProgressView().controlSize(.large).tint(.white) }
-            if shutterFlash { Color.white }
+        }
+    }
 
-            VStack {
-                HStack {
-                    roundButton(cam.flash.icon) { cam.flash = cam.flash.next }
-                    Spacer()
-                    if cam.depthSupported {
-                        PillLabel(text: String(localized: "Depth On"), icon: "cube.transparent")
-                    }
-                    Spacer()
-                    roundButton("arrow.triangle.2.circlepath.camera.fill") { cam.switchCamera() }
+    private var liveControls: some View {
+        VStack {
+            HStack {
+                roundButton(cam.flash.icon) { cam.flash = cam.flash.next }
+                Spacer()
+                if cam.depthSupported {
+                    PillLabel(text: String(localized: "Depth On"), icon: "cube.transparent")
                 }
                 Spacer()
-                shutterButton
+                roundButton("arrow.triangle.2.circlepath.camera.fill") { cam.switchCamera() }
             }
-            .padding(16)
+            Spacer()
+            shutterButton
         }
+        .padding(16)
     }
 
     private func roundButton(_ system: String, _ action: @escaping () -> Void) -> some View {
@@ -278,12 +348,14 @@ struct CameraHomeCard: View {
         }
     }
 
+    /// 快门 = 小号七彩光圈环 + 白心，呼应图标与「转开」的大光圈。
     private var shutterButton: some View {
         Button { capture() } label: {
             ZStack {
-                Circle().stroke(.white, lineWidth: 5).frame(width: 72, height: 72)
-                Circle().fill(.white).frame(width: 58, height: 58)
-                    .scaleEffect(cam.isCapturing ? 0.84 : 1)
+                ApertureMark(swirl: 16, holeScale: 0.52, centerGlass: false)
+                    .frame(width: 78, height: 78)
+                Circle().fill(.white).frame(width: 46, height: 46)
+                    .scaleEffect(cam.isCapturing ? 0.82 : 1)
             }
         }
         .disabled(cam.isCapturing || cam.status != .ready)
@@ -302,7 +374,7 @@ struct CameraHomeCard: View {
 
     @ViewBuilder private func fallback(denied: Bool) -> some View {
         ZStack {
-            LinearGradient(colors: [Theme.ink2, Theme.ink, .black], startPoint: .top, endPoint: .bottom)
+            LinearGradient(colors: [Color(red: 0.07, green: 0.08, blue: 0.13), Color(red: 0.03, green: 0.035, blue: 0.06), .black], startPoint: .top, endPoint: .bottom)
             HeroDepthPeel().frame(maxWidth: .infinity).opacity(0.85).allowsHitTesting(false)
             LinearGradient(colors: [.black.opacity(0.15), .black.opacity(0.55)], startPoint: .top, endPoint: .bottom)
             VStack(spacing: 10) {

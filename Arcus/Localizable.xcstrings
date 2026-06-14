@@ -2000,6 +2000,118 @@
           }
         }
       }
+    },
+    "Open Camera": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Open Camera"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "打开相机"
+          }
+        }
+      }
+    },
+    "Tap to shoot a 3D photo": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tap to shoot a 3D photo"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "轻点拍一张 3D 照片"
+          }
+        }
+      }
+    },
+    "Camera Unavailable": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Camera Unavailable"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "相机不可用"
+          }
+        }
+      }
+    },
+    "Pick a photo below to create a 3D scene": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pick a photo below to create a 3D scene"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "在下方选一张照片来生成 3D"
+          }
+        }
+      }
+    },
+    "From Your Library": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "From Your Library"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "从相册"
+          }
+        }
+      }
+    },
+    "Or pick a photo and turn it into 3D": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Or pick a photo and turn it into 3D"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "或选一张照片，把它变成 3D"
+          }
+        }
+      }
+    },
+    "Shoot to create an interactive 3D photo": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Shoot to create an interactive 3D photo"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "拍一张，生成可交互的 3D 照片"
+          }
+        }
+      }
     }
   },
   "version": "1.0"
