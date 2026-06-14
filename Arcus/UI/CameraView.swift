@@ -224,8 +224,8 @@ struct CameraHomeCard: View {
             idleBackdrop.opacity(revealed ? 0 : 1)
             if started { liveOrFallback.opacity(revealed ? 1 : 0) }
 
-            // 七彩花瓣光圈：闭合=「打开相机」按钮；点按后旋转绽放，随后淡出
-            flowerButton
+            // 七彩机械光圈：闭合=「打开相机」按钮；点按后旋转张开（像镜头光圈），随后淡出
+            apertureButton
 
             // 闭合态文案
             if !started {
@@ -270,30 +270,25 @@ struct CameraHomeCard: View {
         started = true
         cam.onCapture = { data in cam.stop(); model.processData(data) }
         cam.start()
-        withAnimation(.spring(response: 0.85, dampingFraction: 0.56)) { openProgress = 1 }   // 旋转绽放（带回弹，足够动感）
-        withAnimation(.easeInOut(duration: 0.45).delay(0.55)) { revealed = true }              // 绽放后交叉淡入取景
+        withAnimation(.spring(response: 0.6, dampingFraction: 0.74)) { openProgress = 1 }    // 机械开合：快、精准、微回弹
+        withAnimation(.easeInOut(duration: 0.4).delay(0.5)) { revealed = true }               // 张开后交叉淡入取景
     }
 
     private func resetClosed() {
         started = false; openProgress = 0; revealed = false; autoFired = false
     }
 
-    // MARK: 花瓣光圈按钮 +「旋转绽放」动画
+    // MARK: 机械光圈按钮 +「旋转张开」动画
 
-    private var flowerButton: some View {
-        TimelineView(.animation(paused: started)) { tl in
-            let t = tl.date.timeIntervalSinceReferenceDate
-            let idleSpin = (t.truncatingRemainder(dividingBy: 30) / 30) * 360   // 闭合态极慢自转；paused 时冻结，不跳变
-            Button(action: openCamera) {
-                BloomingAperture(progress: openProgress)
-                    .frame(width: 156, height: 156)
-                    .rotationEffect(.degrees(idleSpin))
-                    .shadow(color: Theme.accentA.opacity(0.5), radius: 22)
-            }
-            .buttonStyle(.plain)
-            .allowsHitTesting(!started)
-            .opacity(revealed ? 0 : 1)
+    private var apertureButton: some View {
+        Button(action: openCamera) {
+            IrisAperture(progress: openProgress)
+                .frame(width: 162, height: 162)
+                .shadow(color: Theme.accentA.opacity(0.45), radius: 22)
         }
+        .buttonStyle(.plain)
+        .allowsHitTesting(!started)
+        .opacity(revealed ? 0 : 1)
     }
 
     private var idleBackdrop: some View {

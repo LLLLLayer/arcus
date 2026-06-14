@@ -17,18 +17,24 @@ struct Hexagon: Shape {
     }
 }
 
-/// 光圈环带：外圆挖去中心的六边形孔（even-odd 填充得到环带），用于铺彩虹叶片。
+/// 光圈环带：外圆挖去中心的多边形孔（even-odd 填充得到环带），用于铺彩虹叶片。可动画（孔径/旋转）。
 private struct ApertureRing: Shape {
     var holeScale: CGFloat
     var swirl: Double
+    var sides: Int = 6
+    var animatableData: AnimatablePair<CGFloat, Double> {
+        get { AnimatablePair(holeScale, swirl) }
+        set { holeScale = newValue.first; swirl = newValue.second }
+    }
     func path(in rect: CGRect) -> Path {
         var p = Path()
         let R = min(rect.width, rect.height) / 2
         let c = CGPoint(x: rect.midX, y: rect.midY)
         p.addEllipse(in: CGRect(x: c.x - R, y: c.y - R, width: R * 2, height: R * 2))
+        let n = max(3, sides)
         let r = R * holeScale
-        for i in 0..<6 {
-            let a = (Double(i) * 60 - 90 + swirl) * .pi / 180
+        for i in 0..<n {
+            let a = (Double(i) * 360.0 / Double(n) - 90 + swirl) * .pi / 180
             let pt = CGPoint(x: c.x + r * CGFloat(cos(a)), y: c.y + r * CGFloat(sin(a)))
             if i == 0 { p.move(to: pt) } else { p.addLine(to: pt) }
         }
@@ -82,57 +88,66 @@ struct ApertureMark: View {
     }
 }
 
-/// 单片花瓣 / 光圈叶片（底部为尖端朝中心，顶部圆润）。
-struct PetalShape: Shape {
+/// 多边形孔（N 边形，半径 = scale·R，可旋转），用于光圈内缘描边等，可动画。
+struct PolyHole: Shape {
+    var sides: Int = 6
+    var scale: CGFloat
+    var rotationDegrees: Double
+    var animatableData: AnimatablePair<CGFloat, Double> {
+        get { AnimatablePair(scale, rotationDegrees) }
+        set { scale = newValue.first; rotationDegrees = newValue.second }
+    }
     func path(in rect: CGRect) -> Path {
-        let w = rect.width, h = rect.height
+        let c = CGPoint(x: rect.midX, y: rect.midY)
+        let n = max(3, sides)
+        let r = min(rect.width, rect.height) / 2 * scale
         var p = Path()
-        p.move(to: CGPoint(x: w / 2, y: h))                               // 底部尖端（朝中心）
-        p.addCurve(to: CGPoint(x: w / 2, y: 0),                           // 顶部
-                   control1: CGPoint(x: -w * 0.10, y: h * 0.58),
-                   control2: CGPoint(x: w * 0.30, y: h * 0.06))
-        p.addCurve(to: CGPoint(x: w / 2, y: h),                           // 回到底部尖端
-                   control1: CGPoint(x: w * 0.70, y: h * 0.06),
-                   control2: CGPoint(x: w * 1.10, y: h * 0.58))
+        for i in 0..<n {
+            let a = (Double(i) * 360.0 / Double(n) - 90 + rotationDegrees) * .pi / 180
+            let pt = CGPoint(x: c.x + r * CGFloat(cos(a)), y: c.y + r * CGFloat(sin(a)))
+            if i == 0 { p.move(to: pt) } else { p.addLine(to: pt) }
+        }
         p.closeSubpath()
         return p
     }
 }
 
-/// 会「绽放」的七彩花瓣光圈：`progress` 0→1 时，花瓣一边旋转一边向外展开、露出中心——
-/// 用作「打开相机」的转场（像一朵花旋转转开）。几何全部由 progress 推导，配 spring 即有回弹动感。
-struct BloomingAperture: View {
+/// 机械相机光圈：`progress` 0→1 时，多边形开口一边旋转一边张开（叶片直边收向边缘），露出中心——
+/// 像真实镜头光圈打开。金属镜筒 + 叶片内缘阴影 + 直边，机械感强；配 spring 有精准的开合动感。
+struct IrisAperture: View {
     var progress: Double
-    var bladeCount: Int = 6
+    var sides: Int = 7   // 7 片叶（奇数叶光圈更像真实镜头）
 
     var body: some View {
         GeometryReader { geo in
             let s = min(geo.size.width, geo.size.height)
-            let petalH = s * 0.42
-            let petalW = s * 0.36
-            let r = s * 0.02 + s * 0.30 * CGFloat(progress)     // 中心半径：闭合→展开
-            let spin = progress * 178.0                          // 整体旋转转开
-            let unfurl = progress * 26.0                         // 花瓣外翻
-            let n = max(3, bladeCount)
+            let hole = 0.16 + 0.92 * CGFloat(progress)   // 闭合 → 张开（略超出边缘，叶片全收）
+            let rot = 12 + 64 * progress                 // 机械旋转开合
             ZStack {
-                ForEach(0..<n, id: \.self) { i in
-                    let col = Theme.rainbowColors[i % (Theme.rainbowColors.count - 1)]
-                    PetalShape()
-                        .fill(LinearGradient(colors: [col.opacity(0.96), col, col.opacity(0.78)],
-                                             startPoint: .top, endPoint: .bottom))
-                        .overlay(PetalShape().stroke(.white.opacity(0.30), lineWidth: max(1, s * 0.006)))
-                        .frame(width: petalW, height: petalH)
-                        .rotationEffect(.degrees(unfurl), anchor: .bottom)
-                        .offset(y: -(r + petalH / 2))
-                        .rotationEffect(.degrees(Double(i) * 360.0 / Double(n) + spin))
-                        .shadow(color: col.opacity(0.5), radius: s * 0.03)
-                }
-                // 中心玻璃眼：闭合时明显，绽放时缩小让出中心
+                // 金属镜筒外圈
                 Circle()
-                    .fill(RadialGradient(colors: [.white, .white.opacity(0)], center: .center,
-                                         startRadius: 0, endRadius: s * 0.12))
-                    .frame(width: s * 0.18 * (1 - CGFloat(progress) * 0.85),
-                           height: s * 0.18 * (1 - CGFloat(progress) * 0.85))
+                    .strokeBorder(LinearGradient(colors: [Color(white: 0.34), Color(white: 0.10), Color(white: 0.22)],
+                                                 startPoint: .topLeading, endPoint: .bottomTrailing),
+                                  lineWidth: s * 0.06)
+                    .background(Circle().fill(Color(white: 0.06)))
+                // 彩虹叶片环（中心多边形孔随 progress 张开；even-odd 得环带）
+                ApertureRing(holeScale: hole, swirl: rot, sides: sides)
+                    .fill(AngularGradient(gradient: Gradient(colors: Theme.rainbowColors),
+                                          center: .center, angle: .degrees(rot)),
+                          style: FillStyle(eoFill: true))
+                // 叶片层叠的径向阴影（金属感）：内深外浅
+                ApertureRing(holeScale: hole, swirl: rot, sides: sides)
+                    .fill(RadialGradient(colors: [.black.opacity(0.55), .clear],
+                                         center: .center, startRadius: s * hole * 0.5, endRadius: s * 0.5),
+                          style: FillStyle(eoFill: true))
+                    .blendMode(.multiply)
+                // 叶片内缘：深色厚度阴影 + 细高光，做出机械叶片层叠
+                PolyHole(sides: sides, scale: hole, rotationDegrees: rot)
+                    .stroke(.black.opacity(0.55), lineWidth: s * 0.02)
+                PolyHole(sides: sides, scale: hole, rotationDegrees: rot)
+                    .stroke(.white.opacity(0.22), lineWidth: max(1, s * 0.006))
+                // 外圈细高光
+                Circle().strokeBorder(.white.opacity(0.20), lineWidth: max(1, s * 0.01))
             }
             .frame(width: s, height: s)
             .position(x: geo.size.width / 2, y: geo.size.height / 2)
