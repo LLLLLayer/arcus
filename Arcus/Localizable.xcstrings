@@ -193,6 +193,22 @@
         }
       }
     },
+    "Apple SHARP single-image 3DGS — research model, local experiment only": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Apple SHARP single-image 3DGS — research model, local experiment only"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Apple SHARP 单图→3DGS — 研究模型，仅本地实验"
+          }
+        }
+      }
+    },
     "Auto Dolly": {
       "localizations": {
         "en": {
@@ -1757,6 +1773,38 @@
           "stringUnit": {
             "state": "translated",
             "value": "换个机位重拍"
+          }
+        }
+      }
+    },
+    "Running SHARP (single-image 3D)…": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Running SHARP (single-image 3D)…"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "运行 SHARP（单图 3D）…"
+          }
+        }
+      }
+    },
+    "SHARP (experimental)": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "SHARP (experimental)"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "SHARP（实验）"
           }
         }
       }

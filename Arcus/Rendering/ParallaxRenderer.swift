@@ -68,6 +68,10 @@ final class ParallaxRenderer: NSObject, MTKViewDelegate {
 
     init(pixelFormat: MTLPixelFormat) {
         super.init()
+        // 守住 Swift↔Metal 内存布局契约（不符会无声渲染错乱）：fgCenter@48、stride 56。
+        assert(MemoryLayout<MeshUniforms>.stride == 56
+               && MemoryLayout<MeshUniforms>.offset(of: \.fgCenter) == 48,
+               "MeshUniforms layout must match Shaders.metal (fgCenter@48, stride 56)")
         buildPipelines(pixelFormat: pixelFormat)
     }
 

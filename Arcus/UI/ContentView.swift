@@ -43,6 +43,8 @@ struct ContentView: View {
                 switch env["SCENEMODE"] {
                 case "gaussian", "gaussianSplat": model.sceneMode = .gaussianSplat
                 case "ldi", "layeredLDI": model.sceneMode = .layeredLDI
+                case "sharp", "sharpSplat": model.sceneMode = .sharpSplat   // 隐藏实验入口
+
                 default: break
                 }
                 model.processSample()
@@ -91,7 +93,7 @@ private struct IdleView: View {
 
                 VStack(alignment: .leading, spacing: 12) {
                     sectionLabel("Rendering Mode", "Pick how your photo comes to life")
-                    ForEach(AppModel.SceneMode.allCases) { mode in
+                    ForEach(AppModel.SceneMode.selectable) { mode in
                         SelectableCard(icon: icon(mode), title: mode.title, subtitle: mode.detail,
                                        selected: model.sceneMode == mode) {
                             withAnimation(.easeInOut(duration: 0.2)) { model.sceneMode = mode }
@@ -222,6 +224,7 @@ private struct IdleView: View {
         switch mode {
         case .layeredLDI: return "square.3.layers.3d"
         case .gaussianSplat: return "cube.transparent"
+        case .sharpSplat: return "sparkles.rectangle.stack"
         }
     }
 }

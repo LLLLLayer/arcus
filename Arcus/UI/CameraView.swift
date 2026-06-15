@@ -285,6 +285,7 @@ struct CameraHomeCard: View {
     }
 
     private func resetClosed() {
+        cam.onCapture = nil   // 断开回调：卡片消失/关闭后，迟到的拍照不会再触发 processData
         started = false; openProgress = 0; revealed = false; autoFired = false
     }
 

@@ -52,6 +52,7 @@ struct ArcusGalleryView: View {
                         }
                         .contextMenu {
                             Button(role: .destructive) {
+                                selection.remove(item.id)   // 防止删除后 selection 残留已不存在的 id
                                 withAnimation { model.deleteLibraryItem(item) }
                             } label: { Label("Delete", systemImage: "trash") }
                         }

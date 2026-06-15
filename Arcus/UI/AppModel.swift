@@ -12,14 +12,22 @@ final class AppModel: ObservableObject {
     enum SceneMode: String, CaseIterable, Identifiable, Sendable {
         case layeredLDI
         case gaussianSplat
+        case sharpSplat        // 隐藏实验：Apple SHARP 单图→3DGS（研究授权，不上架；只经 env/隐藏入口选中）
         var id: String { rawValue }
+        /// 启动页可见选项（不含实验性的 SHARP）。
+        static var selectable: [SceneMode] { [.layeredLDI, .gaussianSplat] }
         var title: String {
-            switch self { case .layeredLDI: return String(localized: "Layered Parallax"); case .gaussianSplat: return String(localized: "Gaussian Splatting") }
+            switch self {
+            case .layeredLDI: return String(localized: "Layered Parallax")
+            case .gaussianSplat: return String(localized: "Gaussian Splatting")
+            case .sharpSplat: return String(localized: "SHARP (experimental)")
+            }
         }
         var detail: String {
             switch self {
             case .layeredLDI:    return String(localized: "Real-time depth-layered mesh, great for subtle parallax, pop-out, and export")
             case .gaussianSplat: return String(localized: "On-device 3D Gaussian splatting with true novel views, fully offline and dependency-free")
+            case .sharpSplat:    return String(localized: "Apple SHARP single-image 3DGS — research model, local experiment only")
             }
         }
     }
@@ -98,12 +106,15 @@ final class AppModel: ObservableObject {
         let gKey = geminiKey, gModel = geminiModel
         processingTask = Task.detached(priority: .userInitiated) {
             do {
-                var opts = Photo3DPipeline.Options(fillMode: fm, buildGaussians: sm == .gaussianSplat)
+                var opts = Photo3DPipeline.Options(fillMode: fm,
+                                                   buildGaussians: sm == .gaussianSplat || sm == .sharpSplat,
+                                                   useSharp: sm == .sharpSplat)
                 if useCloudFill {
                     opts.cloudFill = { rgb, hole in AppModel.cloudFillSync(rgb: rgb, hole: hole, key: gKey, model: gModel) }
                 }
                 let scene = try pipeline.process(image: image, avDepth: avDepth, options: opts) { p, m in
                     Task { @MainActor in
+                        guard self.activeRequestID == rid else { return }   // 已被新请求取代的旧管线，别覆盖新进度
                         self.progress = p
                         self.progressMessage = m
                     }
@@ -201,11 +212,15 @@ final class AppModel: ObservableObject {
 
     var canUseGemini: Bool { geminiEnabled && !geminiKey.trimmingCharacters(in: .whitespaces).isEmpty }
 
+    /// 当前是否走高斯渲染宿主（高斯泼溅 / SHARP 实验都会填充 gaussianScene）。视图层统一读这里。
+    var isGaussian: Bool { scene?.gaussianScene != nil }
+
     /// 把当前机位的离屏快照修成一张干净成片：优先 Gemini 云端（若已配置），否则/失败回退端侧 LaMa/MI-GAN（离线）。
     /// 快照以异步闭包传入：在 MainActor 上 await（GPU 等待挂起、不阻塞主线程），重活随后丢进后台任务。
     func repairCurrentViewpoint(snapshot: @escaping () async -> MTLTexture?) {
         guard !repairing else { return }
         repairing = true; repairFailed = false; repairResult = nil
+        let rid = activeRequestID    // 防陈旧：修复期间若重新处理(新 rid)，丢弃这次迟到的修复结果
         let useCloud = canUseGemini
         repairMessage = useCloud ? String(localized: "Repairing in the Gemini cloud…") : String(localized: "Repairing on-device…")
         let original = sourceImage
@@ -232,6 +247,7 @@ final class AppModel: ObservableObject {
             if result == nil { result = snapUI }
             await MainActor.run {
                 self.repairing = false
+                guard self.activeRequestID == rid else { return }   // 已重新处理，丢弃迟到的修复结果
                 if let result { self.repairResult = result }
                 else { self.repairFailed = true; self.errorMessage = String(localized: "View repair failed. Please try again.") }
             }
@@ -241,11 +257,16 @@ final class AppModel: ObservableObject {
 
     func saveRepairResult() {
         guard let img = repairResult else { return }
+        saveImageToPhotos(img, name: "Arcus-Reshot")
+    }
+
+    /// 把一张成片(JPEG)落临时盘并存进相册；toast/错误统一在此处理。重拍与视角修复共用。
+    func saveImageToPhotos(_ image: UIImage, name: String) {
         Task {
             do {
-                guard let data = img.jpegData(compressionQuality: 0.95) else { throw MediaSaver.SaveError.failed }
+                guard let data = image.jpegData(compressionQuality: 0.95) else { throw MediaSaver.SaveError.failed }
                 let url = FileManager.default.temporaryDirectory
-                    .appendingPathComponent("Arcus-Reshot-\(UInt32.random(in: 0...UInt32.max)).jpg")
+                    .appendingPathComponent("\(name)-\(UInt32.random(in: 0...UInt32.max)).jpg")
                 try data.write(to: url)
                 try await MediaSaver.saveImage(url)
                 self.toast = String(localized: "Saved to Photos")
@@ -324,14 +345,15 @@ final class AppModel: ObservableObject {
             erased.pixels[b] = 0.5; erased.pixels[b + 1] = 0.5; erased.pixels[b + 2] = 0.5
         }
         guard let erasedCG = erased.toCGImage() else { return nil }
-        // 2) 同步等待 Gemini（后台线程可阻塞；URLSession 自有线程，仅短暂占用一个协作线程）
+        // 2) 等待 Gemini。注意：这里阻塞的是**调用线程本身**(管线所在的协作线程)，不是 URLSession 的线程。
+        //    故用**有界**等待：网络挂死或管线被取消时，最多占用 60s 后释放线程并回退 PatchMatch，避免长时间占着协作线程。
         let sem = DispatchSemaphore(value: 0)
         var got: UIImage?
         Task.detached(priority: .userInitiated) {
             got = try? await GeminiRepair.fillBackground(image: UIImage(cgImage: erasedCG), key: key, model: model)
             sem.signal()
         }
-        sem.wait()
+        if sem.wait(timeout: .now() + 60) == .timedOut { return nil }   // 超时 → 回退端侧补全
         guard let got, let genCG = got.cgImage else { return nil }
         // 3) 云端结果缩放回 W×H；只在洞内取云端、洞外保留真背景（柔边过渡，避免剪影硬边）
         let gen = FloatImage.fromCGImage(genCG, width: W, height: H)   // 4ch
@@ -350,100 +372,70 @@ final class AppModel: ObservableObject {
 
     // MARK: - 导出
 
-    func exportVideo() {
-        guard let scene = scene else { return }
+    /// 四种导出共用的脚手架：置 isExporting、丢后台任务、统一处理取消/错误、回主线程发结果。
+    /// 各导出只提供：进度文案、出错文案、以及「跑导出器并造出 ExportResult」这一份独有逻辑。
+    private func runExport(message: String, errorFormat: String,
+                          _ work: @Sendable @escaping () throws -> ExportResult) {
+        guard scene != nil else { return }
         isExporting = true
-        exportMessage = String(localized: "Rendering parallax video…")
-        let params = self.params
+        exportMessage = message
         exportTask = Task.detached(priority: .userInitiated) {
             do {
-                let url = try VideoExporter.export(scene: scene, baseParams: params)
-                NSLog("[Export] Video exported: %@", url.path)
-                await MainActor.run {
-                    self.isExporting = false
-                    self.exportResult = ExportResult(url: url, kind: .video)
-                }
+                let result = try work()
+                await MainActor.run { self.isExporting = false; self.exportResult = result }
             } catch is CancellationError {
                 await MainActor.run { self.isExporting = false }
             } catch {
                 await MainActor.run {
                     self.isExporting = false
-                    self.errorMessage = String(format: String(localized: "Failed to export video: %@"), error.localizedDescription)
+                    self.errorMessage = String(format: errorFormat, error.localizedDescription)
                 }
             }
+        }
+    }
+
+    func exportVideo() {
+        guard let scene else { return }
+        let params = self.params
+        runExport(message: String(localized: "Rendering parallax video…"),
+                  errorFormat: String(localized: "Failed to export video: %@")) {
+            let url = try VideoExporter.export(scene: scene, baseParams: params)
+            NSLog("[Export] Video exported: %@", url.path)
+            return ExportResult(url: url, kind: .video)
         }
     }
 
     func exportLive() {
-        guard let scene = scene else { return }
-        isExporting = true
-        exportMessage = String(localized: "Rendering Live Photo…")
+        guard let scene else { return }
         let params = self.params
-        exportTask = Task.detached(priority: .userInitiated) {
-            do {
-                let r = try LivePhotoExporter.export(scene: scene, baseParams: params)
-                let sz = (try? Data(contentsOf: r.video))?.count ?? 0
-                NSLog("[Export] Live Photo exported still=%@ video=%@ (%dKB)", r.still.lastPathComponent, r.video.lastPathComponent, sz/1024)
-                await MainActor.run {
-                    self.isExporting = false
-                    self.exportResult = ExportResult(url: r.still, kind: .live, pairedURL: r.video)
-                }
-            } catch is CancellationError {
-                await MainActor.run { self.isExporting = false }
-            } catch {
-                await MainActor.run {
-                    self.isExporting = false
-                    self.errorMessage = String(format: String(localized: "Live Photo export failed: %@"), error.localizedDescription)
-                }
-            }
+        runExport(message: String(localized: "Rendering Live Photo…"),
+                  errorFormat: String(localized: "Live Photo export failed: %@")) {
+            let r = try LivePhotoExporter.export(scene: scene, baseParams: params)
+            let sz = (try? Data(contentsOf: r.video))?.count ?? 0
+            NSLog("[Export] Live Photo exported still=%@ video=%@ (%dKB)", r.still.lastPathComponent, r.video.lastPathComponent, sz/1024)
+            return ExportResult(url: r.still, kind: .live, pairedURL: r.video)
         }
     }
 
     func exportGif() {
-        guard let scene = scene else { return }
-        isExporting = true
-        exportMessage = String(localized: "Rendering animation…")
+        guard let scene else { return }
         let params = self.params
-        exportTask = Task.detached(priority: .userInitiated) {
-            do {
-                let url = try GifExporter.export(scene: scene, baseParams: params)
-                let sz = (try? Data(contentsOf: url))?.count ?? 0
-                NSLog("[Export] GIF exported %@ (%dKB)", url.lastPathComponent, sz/1024)
-                await MainActor.run {
-                    self.isExporting = false
-                    self.exportResult = ExportResult(url: url, kind: .gif)
-                }
-            } catch is CancellationError {
-                await MainActor.run { self.isExporting = false }
-            } catch {
-                await MainActor.run {
-                    self.isExporting = false
-                    self.errorMessage = String(format: String(localized: "GIF export failed: %@"), error.localizedDescription)
-                }
-            }
+        runExport(message: String(localized: "Rendering animation…"),
+                  errorFormat: String(localized: "GIF export failed: %@")) {
+            let url = try GifExporter.export(scene: scene, baseParams: params)
+            let sz = (try? Data(contentsOf: url))?.count ?? 0
+            NSLog("[Export] GIF exported %@ (%dKB)", url.lastPathComponent, sz/1024)
+            return ExportResult(url: url, kind: .gif)
         }
     }
 
     func exportSpatial() {
-        guard let scene = scene else { return }
-        isExporting = true
-        exportMessage = String(localized: "Rendering spatial photo…")
+        guard let scene else { return }
         let params = self.params
-        exportTask = Task.detached(priority: .userInitiated) {
-            do {
-                let url = try SpatialPhotoExporter.export(scene: scene, baseParams: params)
-                await MainActor.run {
-                    self.isExporting = false
-                    self.exportResult = ExportResult(url: url, kind: .spatial)
-                }
-            } catch is CancellationError {
-                await MainActor.run { self.isExporting = false }
-            } catch {
-                await MainActor.run {
-                    self.isExporting = false
-                    self.errorMessage = String(format: String(localized: "Failed to export spatial photo: %@"), error.localizedDescription)
-                }
-            }
+        runExport(message: String(localized: "Rendering spatial photo…"),
+                  errorFormat: String(localized: "Failed to export spatial photo: %@")) {
+            let url = try SpatialPhotoExporter.export(scene: scene, baseParams: params)
+            return ExportResult(url: url, kind: .spatial)
         }
     }
 

@@ -48,6 +48,8 @@ final class Photo3DPipeline {
         /// (rgb3, 主体洞) → 补全后的整幅背景色(洞内云端生成、洞外真背景)；nil/失败时管线回退 PatchMatch。
         /// 同步签名：在后台管线线程上以信号量阻塞等待这一次网络调用（见 AppModel.cloudFillSync）。
         var cloudFill: ((FloatImage, FloatImage) -> FloatImage?)? = nil
+        /// 隐藏实验：用 Apple SHARP 单图→3DGS 替代解析式高斯（研究授权、仅本地）。失败/缺模型回退解析式。
+        var useSharp: Bool = false
     }
 
     enum PipelineError: Error { case badImage, textureAllocation }
@@ -56,6 +58,7 @@ final class Photo3DPipeline {
     private let segmenter = SubjectSegmenter()
     private let lamaInpainter = LamaInpainter()
     private let miganInpainter = MiganInpainter()
+    private let sharpModel = SHARPModel()   // 隐藏实验路径，常驻复用（模型缺失则 isAvailable=false）
 
     var isDepthModelAvailable: Bool { depthEstimator.isModelAvailable }
     var isLamaAvailable: Bool { lamaInpainter.isAvailable }
@@ -383,11 +386,21 @@ final class Photo3DPipeline {
         var gaussianScene: GaussianScene?
         if options.buildGaussians {
             try Task.checkCancellation()
-            progress(0.92, String(localized: "Building 3D Gaussians…"))
-            gaussianScene = GaussianSplatBuilder.build(
-                color: color, fgDisp: fgDisp, matte: fgAField,
-                bgColor: bgColorImg, bgDisp: bgDepthImg,
-                depthPivot: depthPivot, suggestedParallax: suggested)
+            // 隐藏实验：优先 SHARP（单图→3DGS）；缺模型/失败回退解析式高斯。
+            if options.useSharp, sharpModel.isAvailable {
+                progress(0.92, String(localized: "Running SHARP (single-image 3D)…"))
+                if let raw = sharpModel.predict(image: image) {
+                    gaussianScene = SharpGaussianBuilder.build(raw)
+                }
+                if gaussianScene == nil { NSLog("[Pipeline] SHARP failed; falling back to analytic gaussians.") }
+            }
+            if gaussianScene == nil {
+                progress(0.92, String(localized: "Building 3D Gaussians…"))
+                gaussianScene = GaussianSplatBuilder.build(
+                    color: color, fgDisp: fgDisp, matte: fgAField,
+                    bgColor: bgColorImg, bgDisp: bgDepthImg,
+                    depthPivot: depthPivot, suggestedParallax: suggested)
+            }
         }
 
         NSLog("[Pipeline] done %dx%d in %.2fs (depth:%@ subject:%@ fill:%@ tris fg:%d/bg:%d)", W, H,
@@ -502,6 +515,7 @@ final class Photo3DPipeline {
 
     private func suggestedParallax(from disp: FloatImage) -> Float {
         let n = disp.pixels.count
+        guard n > 0 else { return 0.5 }   // 空图兜底，避免 /0 → NaN
         let mean = disp.pixels.reduce(0, +) / Float(n)
         var varSum: Float = 0
         for v in disp.pixels { let d = v - mean; varSum += d * d }

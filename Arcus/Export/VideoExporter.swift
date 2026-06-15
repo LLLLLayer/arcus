@@ -118,6 +118,7 @@ enum VideoExporter {
         sem.wait()
 
         if writer.status == .failed {
+            try? FileManager.default.removeItem(at: url)      // 收尾失败也清掉半成品，别在临时目录留垃圾
             throw writer.error ?? ExportError.writerInit
         }
         return url
