@@ -302,8 +302,9 @@ enum DisocclusionInpainter {
         for _ in 0..<emN {
             for it in 0..<pmIterN {
                 let fwd = it % 2 == 0
-                let order = fwd ? holeIdx : holeIdx.reversed().map { $0 }
-                for p in order {
+                let cnt = holeIdx.count   // 原地正/反向遍历，避免每次反向迭代都新建一份反转数组拷贝
+                for k in 0..<cnt {
+                    let p = fwd ? holeIdx[k] : holeIdx[cnt - 1 - k]
                     let x = p % w, y = p / w
                     var bsx = Int(nx[p]), bsy = Int(ny[p])
                     var bd = pdist(x, y, bsx, bsy, .greatestFiniteMagnitude)

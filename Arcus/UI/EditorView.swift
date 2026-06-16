@@ -20,9 +20,7 @@ struct EditorView: View {
     @State private var showSettings = false
     @State private var coverFade: Double = 1   // 进入高斯查看时：清晰原图 → 溶解到 3D 渲染（Apple 式过场）
 
-    private var isGaussian: Bool {
-        model.sceneMode == .gaussianSplat && model.scene?.gaussianScene != nil
-    }
+    private var isGaussian: Bool { model.isGaussian }   // 单一真源在 AppModel
 
     @ViewBuilder private var rendererHost: some View {
         if isGaussian {
@@ -328,17 +326,6 @@ struct EditorView: View {
 
     private func saveReframeResult() {
         guard let img = reframeResult else { return }
-        Task {
-            do {
-                guard let data = img.jpegData(compressionQuality: 0.95) else { throw MediaSaver.SaveError.failed }
-                let url = FileManager.default.temporaryDirectory
-                    .appendingPathComponent("Arcus-Reframe-\(UInt32.random(in: 0...UInt32.max)).jpg")
-                try data.write(to: url)
-                try await MediaSaver.saveImage(url)
-                model.toast = String(localized: "Saved to Photos")
-            } catch {
-                model.errorMessage = String(format: String(localized: "Failed to save to Photos: %@"), error.localizedDescription)
-            }
-        }
+        model.saveImageToPhotos(img, name: "Arcus-Reframe")   // 与视角修复共用存盘逻辑
     }
 }

@@ -9,7 +9,7 @@ struct ControlsView: View {
     @State private var expanded = false   // 默认收起，沉浸看 3D；点 chevron 展开参数/导出
 
     private var isGaussian: Bool {
-        model.sceneMode == .gaussianSplat && model.scene?.gaussianScene != nil
+        model.isGaussian   // 单一真源在 AppModel（高斯泼溅 / SHARP 实验都填充 gaussianScene）
     }
 
     var body: some View {
